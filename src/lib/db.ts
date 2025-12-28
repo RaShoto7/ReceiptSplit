@@ -1,50 +1,73 @@
 import { sql } from '@vercel/postgres';
 import { Room, Participant, Item, ItemAssignment, Currency, TipTaxType } from '@/types';
 
+// Check if database is configured
+export function isDatabaseConfigured(): boolean {
+  return !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
+}
+
+// Track if tables have been initialized
+let tablesInitialized = false;
+
 // Initialize database tables
 export async function initializeDatabase() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS rooms (
-      id VARCHAR(10) PRIMARY KEY,
-      title VARCHAR(255),
-      currency VARCHAR(3) NOT NULL DEFAULT 'USD',
-      tip_type VARCHAR(10) NOT NULL DEFAULT 'none',
-      tip_value DECIMAL(10,2) NOT NULL DEFAULT 0,
-      tax_type VARCHAR(10) NOT NULL DEFAULT 'none',
-      tax_value DECIMAL(10,2) NOT NULL DEFAULT 0,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `;
+  if (!isDatabaseConfigured()) {
+    throw new Error('Database not configured. Please set up Vercel Postgres and link it to your project.');
+  }
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS participants (
-      id VARCHAR(36) PRIMARY KEY,
-      room_id VARCHAR(10) NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-      name VARCHAR(255) NOT NULL,
-      is_payer BOOLEAN DEFAULT FALSE,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `;
+  if (tablesInitialized) {
+    return;
+  }
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS items (
-      id VARCHAR(36) PRIMARY KEY,
-      room_id VARCHAR(10) NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-      name VARCHAR(255) NOT NULL,
-      amount DECIMAL(10,2) NOT NULL,
-      quantity INTEGER NOT NULL DEFAULT 1,
-      category VARCHAR(100),
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `;
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS rooms (
+        id VARCHAR(10) PRIMARY KEY,
+        title VARCHAR(255),
+        currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+        tip_type VARCHAR(10) NOT NULL DEFAULT 'none',
+        tip_value DECIMAL(10,2) NOT NULL DEFAULT 0,
+        tax_type VARCHAR(10) NOT NULL DEFAULT 'none',
+        tax_value DECIMAL(10,2) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS item_assignments (
-      item_id VARCHAR(36) NOT NULL REFERENCES items(id) ON DELETE CASCADE,
-      participant_id VARCHAR(36) NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
-      PRIMARY KEY (item_id, participant_id)
-    )
-  `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS participants (
+        id VARCHAR(36) PRIMARY KEY,
+        room_id VARCHAR(10) NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        is_payer BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS items (
+        id VARCHAR(36) PRIMARY KEY,
+        room_id VARCHAR(10) NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        category VARCHAR(100),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS item_assignments (
+        item_id VARCHAR(36) NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+        participant_id VARCHAR(36) NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+        PRIMARY KEY (item_id, participant_id)
+      )
+    `;
+
+    tablesInitialized = true;
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    throw error;
+  }
 }
 
 // Room operations

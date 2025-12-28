@@ -1,5 +1,5 @@
-import { notFound } from 'next/navigation';
-import { getFullRoomData, initializeDatabase } from '@/lib/db';
+import { notFound, redirect } from 'next/navigation';
+import { getFullRoomData, initializeDatabase, isDatabaseConfigured } from '@/lib/db';
 import { calculateParticipantTotals, calculateSettlements } from '@/lib/calculations';
 import { RoomHeader } from '@/components/RoomHeader';
 import { ParticipantsList } from '@/components/ParticipantsList';
@@ -12,6 +12,11 @@ interface PageProps {
 }
 
 export default async function RoomPage({ params }: PageProps) {
+  // Check if database is configured
+  if (!isDatabaseConfigured()) {
+    redirect('/');
+  }
+
   const { roomId } = await params;
 
   await initializeDatabase();
