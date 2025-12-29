@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "ReceiptSplit - Split Bills Easily",
-  description: "A fast, mobile-first app to split bills among friends. No login required.",
+  title: "ReceiptSplit",
+  description: "Partagez vos additions facilement. Split bills easily with friends.",
 };
 
 export const viewport: Viewport = {
@@ -11,6 +12,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: "#f2f2f7",
 };
 
 export default function RootLayout({
@@ -19,11 +21,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <main className="max-w-lg mx-auto px-4 py-6 pb-20">
-          {children}
-        </main>
+    <html lang="fr">
+      <body className="min-h-screen">
+        <Providers>
+          <main className="max-w-lg mx-auto px-4 py-6 pb-24">
+            {children}
+          </main>
+        </Providers>
       </body>
     </html>
   );

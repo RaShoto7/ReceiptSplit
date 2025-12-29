@@ -45,6 +45,7 @@ export default async function RoomPage({ params }: PageProps) {
         items={items}
         participants={participants}
         assignments={assignments}
+        currency={room.currency}
       />
 
       <TipTaxSettings room={room} />
