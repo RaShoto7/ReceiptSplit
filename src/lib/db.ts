@@ -1,5 +1,27 @@
-import { sql } from '@vercel/postgres';
+import { Pool } from 'pg';
 import { Room, Participant, Item, ItemAssignment, Currency, TipTaxType } from '@/types';
+
+// Create a connection pool
+let pool: Pool | null = null;
+
+function getPool(): Pool {
+  if (!pool) {
+    const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+
+    if (!connectionString) {
+      throw new Error('Database not configured. Please set POSTGRES_URL or DATABASE_URL.');
+    }
+
+    pool = new Pool({
+      connectionString,
+      ssl: {
+        rejectUnauthorized: false
+      },
+      max: 10,
+    });
+  }
+  return pool;
+}
 
 // Check if database is configured
 export function isDatabaseConfigured(): boolean {
@@ -19,8 +41,10 @@ export async function initializeDatabase() {
     return;
   }
 
+  const db = getPool();
+
   try {
-    await sql`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS rooms (
         id VARCHAR(10) PRIMARY KEY,
         title VARCHAR(255),
@@ -31,9 +55,9 @@ export async function initializeDatabase() {
         tax_value DECIMAL(10,2) NOT NULL DEFAULT 0,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
-    await sql`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS participants (
         id VARCHAR(36) PRIMARY KEY,
         room_id VARCHAR(10) NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -41,9 +65,9 @@ export async function initializeDatabase() {
         is_payer BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
-    await sql`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS items (
         id VARCHAR(36) PRIMARY KEY,
         room_id VARCHAR(10) NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -53,15 +77,15 @@ export async function initializeDatabase() {
         category VARCHAR(100),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
-    await sql`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS item_assignments (
         item_id VARCHAR(36) NOT NULL REFERENCES items(id) ON DELETE CASCADE,
         participant_id VARCHAR(36) NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
         PRIMARY KEY (item_id, participant_id)
       )
-    `;
+    `);
 
     tablesInitialized = true;
   } catch (error) {
@@ -72,16 +96,17 @@ export async function initializeDatabase() {
 
 // Room operations
 export async function createRoom(id: string, currency: Currency, title?: string): Promise<Room> {
-  const result = await sql`
-    INSERT INTO rooms (id, title, currency)
-    VALUES (${id}, ${title || null}, ${currency})
-    RETURNING *
-  `;
+  const db = getPool();
+  const result = await db.query(
+    'INSERT INTO rooms (id, title, currency) VALUES ($1, $2, $3) RETURNING *',
+    [id, title || null, currency]
+  );
   return result.rows[0] as Room;
 }
 
 export async function getRoom(id: string): Promise<Room | null> {
-  const result = await sql`SELECT * FROM rooms WHERE id = ${id}`;
+  const db = getPool();
+  const result = await db.query('SELECT * FROM rooms WHERE id = $1', [id]);
   return result.rows[0] as Room | null;
 }
 
@@ -92,47 +117,53 @@ export async function updateRoomTipTax(
   taxType: TipTaxType,
   taxValue: number
 ): Promise<void> {
-  await sql`
-    UPDATE rooms
-    SET tip_type = ${tipType}, tip_value = ${tipValue}, tax_type = ${taxType}, tax_value = ${taxValue}
-    WHERE id = ${roomId}
-  `;
+  const db = getPool();
+  await db.query(
+    'UPDATE rooms SET tip_type = $1, tip_value = $2, tax_type = $3, tax_value = $4 WHERE id = $5',
+    [tipType, tipValue, taxType, taxValue, roomId]
+  );
 }
 
 // Participant operations
 export async function getParticipants(roomId: string): Promise<Participant[]> {
-  const result = await sql`
-    SELECT * FROM participants WHERE room_id = ${roomId} ORDER BY created_at ASC
-  `;
+  const db = getPool();
+  const result = await db.query(
+    'SELECT * FROM participants WHERE room_id = $1 ORDER BY created_at ASC',
+    [roomId]
+  );
   return result.rows as Participant[];
 }
 
 export async function addParticipant(id: string, roomId: string, name: string): Promise<Participant> {
-  const result = await sql`
-    INSERT INTO participants (id, room_id, name)
-    VALUES (${id}, ${roomId}, ${name})
-    RETURNING *
-  `;
+  const db = getPool();
+  const result = await db.query(
+    'INSERT INTO participants (id, room_id, name) VALUES ($1, $2, $3) RETURNING *',
+    [id, roomId, name]
+  );
   return result.rows[0] as Participant;
 }
 
 export async function removeParticipant(id: string): Promise<void> {
-  await sql`DELETE FROM participants WHERE id = ${id}`;
+  const db = getPool();
+  await db.query('DELETE FROM participants WHERE id = $1', [id]);
 }
 
 export async function setPayerStatus(participantId: string, isPayer: boolean, roomId: string): Promise<void> {
+  const db = getPool();
   // First, clear all payers in the room if setting a new payer
   if (isPayer) {
-    await sql`UPDATE participants SET is_payer = FALSE WHERE room_id = ${roomId}`;
+    await db.query('UPDATE participants SET is_payer = FALSE WHERE room_id = $1', [roomId]);
   }
-  await sql`UPDATE participants SET is_payer = ${isPayer} WHERE id = ${participantId}`;
+  await db.query('UPDATE participants SET is_payer = $1 WHERE id = $2', [isPayer, participantId]);
 }
 
 // Item operations
 export async function getItems(roomId: string): Promise<Item[]> {
-  const result = await sql`
-    SELECT * FROM items WHERE room_id = ${roomId} ORDER BY created_at ASC
-  `;
+  const db = getPool();
+  const result = await db.query(
+    'SELECT * FROM items WHERE room_id = $1 ORDER BY created_at ASC',
+    [roomId]
+  );
   return result.rows as Item[];
 }
 
@@ -144,11 +175,11 @@ export async function addItem(
   quantity: number,
   category?: string
 ): Promise<Item> {
-  const result = await sql`
-    INSERT INTO items (id, room_id, name, amount, quantity, category)
-    VALUES (${id}, ${roomId}, ${name}, ${amount}, ${quantity}, ${category || null})
-    RETURNING *
-  `;
+  const db = getPool();
+  const result = await db.query(
+    'INSERT INTO items (id, room_id, name, amount, quantity, category) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+    [id, roomId, name, amount, quantity, category || null]
+  );
   return result.rows[0] as Item;
 }
 
@@ -159,38 +190,41 @@ export async function updateItem(
   quantity: number,
   category?: string
 ): Promise<void> {
-  await sql`
-    UPDATE items
-    SET name = ${name}, amount = ${amount}, quantity = ${quantity}, category = ${category || null}
-    WHERE id = ${id}
-  `;
+  const db = getPool();
+  await db.query(
+    'UPDATE items SET name = $1, amount = $2, quantity = $3, category = $4 WHERE id = $5',
+    [name, amount, quantity, category || null, id]
+  );
 }
 
 export async function removeItem(id: string): Promise<void> {
-  await sql`DELETE FROM items WHERE id = ${id}`;
+  const db = getPool();
+  await db.query('DELETE FROM items WHERE id = $1', [id]);
 }
 
 // Assignment operations
 export async function getAssignments(roomId: string): Promise<ItemAssignment[]> {
-  const result = await sql`
+  const db = getPool();
+  const result = await db.query(`
     SELECT ia.item_id, ia.participant_id
     FROM item_assignments ia
     JOIN items i ON ia.item_id = i.id
-    WHERE i.room_id = ${roomId}
-  `;
+    WHERE i.room_id = $1
+  `, [roomId]);
   return result.rows as ItemAssignment[];
 }
 
 export async function setItemAssignments(itemId: string, participantIds: string[]): Promise<void> {
+  const db = getPool();
   // Clear existing assignments
-  await sql`DELETE FROM item_assignments WHERE item_id = ${itemId}`;
+  await db.query('DELETE FROM item_assignments WHERE item_id = $1', [itemId]);
 
   // Add new assignments
   for (const participantId of participantIds) {
-    await sql`
-      INSERT INTO item_assignments (item_id, participant_id)
-      VALUES (${itemId}, ${participantId})
-    `;
+    await db.query(
+      'INSERT INTO item_assignments (item_id, participant_id) VALUES ($1, $2)',
+      [itemId, participantId]
+    );
   }
 }
 
