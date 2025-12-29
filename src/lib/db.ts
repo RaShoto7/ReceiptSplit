@@ -7,7 +7,7 @@ let pool: Pool | null = null;
 function getPool(): Pool {
   if (!pool) {
     // Prefer non-pooling URL for serverless (better for Supabase)
-    const connectionString =
+    let connectionString =
       process.env.POSTGRES_URL_NON_POOLING ||
       process.env.POSTGRES_URL ||
       process.env.DATABASE_URL;
@@ -16,19 +16,20 @@ function getPool(): Pool {
       throw new Error('Database not configured. Please set POSTGRES_URL or DATABASE_URL.');
     }
 
+    // Remove any existing sslmode from URL to avoid conflicts
+    connectionString = connectionString.replace(/[?&]sslmode=[^&]*/g, '');
+    // Clean up double && or trailing ?
+    connectionString = connectionString.replace(/\?&/, '?').replace(/[?&]$/, '');
+
     const config: PoolConfig = {
       connectionString,
       max: 5,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
+      ssl: {
+        rejectUnauthorized: false,
+      },
     };
-
-    // Add SSL for production (Supabase requires it)
-    if (process.env.NODE_ENV === 'production' || connectionString.includes('supabase')) {
-      config.ssl = {
-        rejectUnauthorized: false
-      };
-    }
 
     pool = new Pool(config);
 
