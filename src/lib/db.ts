@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, PoolConfig } from 'pg';
 import { Room, Participant, Item, ItemAssignment, Currency, TipTaxType } from '@/types';
 
 // Create a connection pool
@@ -6,18 +6,35 @@ let pool: Pool | null = null;
 
 function getPool(): Pool {
   if (!pool) {
-    const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+    // Prefer non-pooling URL for serverless (better for Supabase)
+    const connectionString =
+      process.env.POSTGRES_URL_NON_POOLING ||
+      process.env.POSTGRES_URL ||
+      process.env.DATABASE_URL;
 
     if (!connectionString) {
       throw new Error('Database not configured. Please set POSTGRES_URL or DATABASE_URL.');
     }
 
-    pool = new Pool({
+    const config: PoolConfig = {
       connectionString,
-      ssl: {
+      max: 5,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    };
+
+    // Add SSL for production (Supabase requires it)
+    if (process.env.NODE_ENV === 'production' || connectionString.includes('supabase')) {
+      config.ssl = {
         rejectUnauthorized: false
-      },
-      max: 10,
+      };
+    }
+
+    pool = new Pool(config);
+
+    // Log connection errors
+    pool.on('error', (err) => {
+      console.error('Unexpected error on idle client', err);
     });
   }
   return pool;
@@ -25,7 +42,11 @@ function getPool(): Pool {
 
 // Check if database is configured
 export function isDatabaseConfigured(): boolean {
-  return !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
+  return !!(
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL
+  );
 }
 
 // Track if tables have been initialized
@@ -34,7 +55,7 @@ let tablesInitialized = false;
 // Initialize database tables
 export async function initializeDatabase() {
   if (!isDatabaseConfigured()) {
-    throw new Error('Database not configured. Please set up Vercel Postgres and link it to your project.');
+    throw new Error('Database not configured. Please set up your Postgres database.');
   }
 
   if (tablesInitialized) {
@@ -44,6 +65,9 @@ export async function initializeDatabase() {
   const db = getPool();
 
   try {
+    // Test connection first
+    await db.query('SELECT 1');
+
     await db.query(`
       CREATE TABLE IF NOT EXISTS rooms (
         id VARCHAR(10) PRIMARY KEY,
@@ -88,9 +112,10 @@ export async function initializeDatabase() {
     `);
 
     tablesInitialized = true;
+    console.log('Database tables initialized successfully');
   } catch (error) {
     console.error('Failed to initialize database:', error);
-    throw error;
+    throw new Error(`Database initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -150,7 +175,6 @@ export async function removeParticipant(id: string): Promise<void> {
 
 export async function setPayerStatus(participantId: string, isPayer: boolean, roomId: string): Promise<void> {
   const db = getPool();
-  // First, clear all payers in the room if setting a new payer
   if (isPayer) {
     await db.query('UPDATE participants SET is_payer = FALSE WHERE room_id = $1', [roomId]);
   }
@@ -216,10 +240,8 @@ export async function getAssignments(roomId: string): Promise<ItemAssignment[]> 
 
 export async function setItemAssignments(itemId: string, participantIds: string[]): Promise<void> {
   const db = getPool();
-  // Clear existing assignments
   await db.query('DELETE FROM item_assignments WHERE item_id = $1', [itemId]);
 
-  // Add new assignments
   for (const participantId of participantIds) {
     await db.query(
       'INSERT INTO item_assignments (item_id, participant_id) VALUES ($1, $2)',
