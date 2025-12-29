@@ -6,10 +6,11 @@ let pool: Pool | null = null;
 
 function getPool(): Pool {
   if (!pool) {
+    // Prefer pooled connection for Supabase (SESSION mode)
     let connectionString =
-      process.env.POSTGRES_URL_NON_POOLING ||
       process.env.POSTGRES_URL ||
-      process.env.DATABASE_URL;
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_URL_NON_POOLING;
 
     if (!connectionString) {
       throw new Error('Database not configured. Please set POSTGRES_URL or DATABASE_URL.');
@@ -21,8 +22,8 @@ function getPool(): Pool {
 
     const config: PoolConfig = {
       connectionString,
-      max: 5,
-      idleTimeoutMillis: 30000,
+      max: 1, // Reduce to 1 for serverless - Supabase free tier has limited connections
+      idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 10000,
       ssl: {
         rejectUnauthorized: false,

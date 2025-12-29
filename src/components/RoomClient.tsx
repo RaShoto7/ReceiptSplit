@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Room, Participant, Item, Payment, Currency, CURRENCY_SYMBOLS } from '@/types';
+import { useState, useEffect } from 'react';
+import { Room, Participant, Item, Payment, Currency } from '@/types';
 import { useLanguage } from '@/lib/language';
-import { getSession, setRoomSession, getRoomSession } from '@/lib/session';
+import { getSession, setRoomSession } from '@/lib/session';
 import { subscribeToRoom, unsubscribeFromRoom } from '@/lib/supabase';
 import {
   joinRoomAction,
@@ -11,7 +11,8 @@ import {
   removeItemAction,
   updateRoomStatusAction,
   updateTipTaxAction,
-  payItemAction
+  payItemAction,
+  removePaymentAction
 } from '@/lib/actions';
 import { formatCurrency, getItemTotal, getParticipantTotal, getRoomTotals } from '@/lib/calculations';
 import { SettingsButton } from './SettingsModal';
@@ -67,7 +68,6 @@ export function RoomClient({
   // Subscribe to real-time updates
   useEffect(() => {
     const channel = subscribeToRoom(room.id, async () => {
-      // Refetch data when changes occur
       try {
         const res = await fetch(`/api/room/${room.id}`);
         if (res.ok) {
@@ -110,7 +110,6 @@ export function RoomClient({
       }
     } else if (result?.success && result?.participantId) {
       setRoomSession(room.id, result.participantId, joinName.trim());
-      // Reload to get updated participant list
       window.location.reload();
     }
 
@@ -138,7 +137,6 @@ export function RoomClient({
     setItemQuantity('1');
     setIsAddingItem(false);
 
-    // Refetch
     window.location.reload();
   };
 
@@ -151,7 +149,7 @@ export function RoomClient({
     window.location.reload();
   };
 
-  // Finalize bill (switch to paying mode)
+  // Finalize bill
   const handleFinalize = async () => {
     const formData = new FormData();
     formData.set('roomId', room.id);
@@ -185,6 +183,15 @@ export function RoomClient({
     window.location.reload();
   };
 
+  // Cancel payment
+  const handleCancelPayment = async (paymentId: string) => {
+    const formData = new FormData();
+    formData.set('paymentId', paymentId);
+    formData.set('roomId', room.id);
+    await removePaymentAction(formData);
+    window.location.reload();
+  };
+
   // Copy link
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(window.location.href);
@@ -204,6 +211,49 @@ export function RoomClient({
 
   // Room totals
   const roomTotals = getRoomTotals(room, participants, items, payments);
+
+  // Calculate remaining to pay (total - paid items)
+  const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const remainingToPay = roomTotals.grandTotal - totalPaid;
+
+  // Calculate who owes what to whom
+  const calculateDebts = () => {
+    const debts: { from: Participant; to: Participant; amount: number }[] = [];
+
+    participants.forEach(payer => {
+      // Get items paid by this payer for others
+      const paymentsForOthers = payments.filter(p => {
+        if (p.paid_by_participant_id !== payer.id) return false;
+        const item = items.find(i => i.id === p.item_id);
+        return item && item.created_by_participant_id !== payer.id;
+      });
+
+      paymentsForOthers.forEach(payment => {
+        const item = items.find(i => i.id === payment.item_id);
+        if (!item) return;
+
+        const owner = participants.find(p => p.id === item.created_by_participant_id);
+        if (!owner) return;
+
+        // Add tip and tax proportion to the amount
+        const itemTotal = getItemTotal(item);
+        const proportion = itemTotal / roomTotals.subtotal;
+        const tipTaxShare = (roomTotals.tipTotal + roomTotals.taxTotal) * proportion;
+        const totalWithTipTax = itemTotal + tipTaxShare;
+
+        const existingDebt = debts.find(d => d.from.id === owner.id && d.to.id === payer.id);
+        if (existingDebt) {
+          existingDebt.amount += totalWithTipTax;
+        } else {
+          debts.push({ from: owner, to: payer, amount: totalWithTipTax });
+        }
+      });
+    });
+
+    return debts.filter(d => d.amount > 0.01);
+  };
+
+  const debts = calculateDebts();
 
   // If not joined, show join form
   if (!currentParticipant) {
@@ -355,39 +405,57 @@ export function RoomClient({
                 </div>
               )}
 
-              {/* Add item form */}
+              {/* Add item form - IMPROVED LAYOUT */}
               <form onSubmit={handleAddItem} className="space-y-3">
-                <input
-                  type="text"
-                  value={itemName}
-                  onChange={(e) => setItemName(e.target.value)}
-                  placeholder={t.itemNamePlaceholder}
-                  className="w-full px-4 py-3 bg-[#f2f2f7] dark:bg-[#2c2c2e] border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
-                />
+                {/* Product name */}
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
+                    {t.itemNamePlaceholder.split(':')[0] || 'Produit'}
+                  </label>
+                  <input
+                    type="text"
+                    value={itemName}
+                    onChange={(e) => setItemName(e.target.value)}
+                    placeholder={t.itemNamePlaceholder}
+                    className="w-full px-4 py-3 bg-[#f2f2f7] dark:bg-[#2c2c2e] border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Quantity and Price row */}
                 <div className="flex gap-2">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={itemPrice}
-                    onChange={(e) => setItemPrice(e.target.value)}
-                    placeholder={t.pricePlaceholder}
-                    className="flex-1 px-4 py-3 bg-[#f2f2f7] dark:bg-[#2c2c2e] border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="number"
-                    min="1"
-                    value={itemQuantity}
-                    onChange={(e) => setItemQuantity(e.target.value)}
-                    placeholder={t.quantity}
-                    className="w-20 px-4 py-3 bg-[#f2f2f7] dark:bg-[#2c2c2e] border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 text-center"
-                  />
+                  <div className="w-24">
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
+                      {t.quantity}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={itemQuantity}
+                      onChange={(e) => setItemQuantity(e.target.value)}
+                      placeholder="1"
+                      className="w-full px-4 py-3 bg-[#f2f2f7] dark:bg-[#2c2c2e] border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 text-center"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
+                      {t.price} ({currency})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={itemPrice}
+                      onChange={(e) => setItemPrice(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-4 py-3 bg-[#f2f2f7] dark:bg-[#2c2c2e] border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                   <button
                     type="submit"
                     disabled={isAddingItem || !itemName || !itemPrice}
-                    className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-xl font-medium transition-all"
+                    className="self-end px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-xl font-medium transition-all"
                   >
-                    {isAddingItem ? '...' : t.addItem}
+                    {isAddingItem ? '...' : '+'}
                   </button>
                 </div>
               </form>
@@ -528,22 +596,25 @@ export function RoomClient({
         {/* Paying phase */}
         {room.status === 'paying' && (
           <>
-            <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                  {t.paymentMode}
-                </h2>
-                <p className="text-gray-500 dark:text-gray-400">
-                  {t.yourShare}: <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(totals.total, currency)}</span>
+            {/* Remaining to pay banner */}
+            <section className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-3xl shadow-sm p-6 text-white animate-fade-in-up">
+              <div className="text-center">
+                <p className="text-orange-100 text-sm mb-1">{t.remainingToPay}</p>
+                <p className="text-4xl font-bold">
+                  {remainingToPay > 0 ? formatCurrency(remainingToPay, currency) : t.allPaid}
+                </p>
+                <p className="text-orange-100 text-sm mt-2">
+                  {t.total}: {formatCurrency(roomTotals.grandTotal, currency)}
                 </p>
               </div>
+            </section>
 
-              {/* All items grouped by person */}
+            {/* All items grouped by person */}
+            <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up stagger-1">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                {t.paymentMode}
+              </h2>
+
               <div className="space-y-4">
                 {participants.map(participant => {
                   const pItems = items.filter(i => i.created_by_participant_id === participant.id);
@@ -573,11 +644,12 @@ export function RoomClient({
                       <div className="space-y-2">
                         {pItems.map(item => {
                           const itemTotal = getItemTotal(item);
-                          const itemPayments = payments.filter(p => p.item_id === item.id);
-                          const isPaid = itemPayments.length > 0;
+                          const itemPayment = payments.find(p => p.item_id === item.id);
+                          const isPaid = !!itemPayment;
                           const paidBy = isPaid
-                            ? participants.find(p => p.id === itemPayments[0].paid_by_participant_id)
+                            ? participants.find(p => p.id === itemPayment.paid_by_participant_id)
                             : null;
+                          const canCancel = isPaid && itemPayment.paid_by_participant_id === currentParticipant?.id;
 
                           return (
                             <div key={item.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#1c1c1e] rounded-xl">
@@ -592,9 +664,19 @@ export function RoomClient({
                               </div>
 
                               {isPaid ? (
-                                <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-sm font-medium">
-                                  {t.paid} {paidBy && paidBy.id !== participant.id && `(${paidBy.name})`}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-sm font-medium">
+                                    {t.paid} {paidBy && paidBy.id !== participant.id && `(${paidBy.name})`}
+                                  </span>
+                                  {canCancel && (
+                                    <button
+                                      onClick={() => handleCancelPayment(itemPayment.id)}
+                                      className="px-2 py-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-xs font-medium transition-all"
+                                    >
+                                      {t.cancelPayment}
+                                    </button>
+                                  )}
+                                </div>
                               ) : !isMe ? (
                                 <button
                                   onClick={() => handlePayItem(item.id, itemTotal)}
@@ -620,8 +702,70 @@ export function RoomClient({
               </div>
             </section>
 
+            {/* Who owes what to whom */}
+            {debts.length > 0 && (
+              <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up stagger-2">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  {t.whoOwesWhat}
+                </h2>
+
+                <div className="space-y-3">
+                  {debts.map((debt, i) => {
+                    const isFromMe = debt.from.id === currentParticipant?.id;
+                    const isToMe = debt.to.id === currentParticipant?.id;
+
+                    return (
+                      <div
+                        key={i}
+                        className={`p-4 rounded-2xl ${
+                          isFromMe
+                            ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                            : isToMe
+                            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                            : 'bg-gray-50 dark:bg-gray-800/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-medium ${isFromMe ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                              {isFromMe ? t.you : debt.from.name}
+                            </span>
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                            </svg>
+                            <span className={`font-medium ${isToMe ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
+                              {isToMe ? t.you : debt.to.name}
+                            </span>
+                          </div>
+                          <span className={`font-bold text-lg ${
+                            isFromMe
+                              ? 'text-red-600 dark:text-red-400'
+                              : isToMe
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-gray-900 dark:text-white'
+                          }`}>
+                            {formatCurrency(debt.amount, currency)}
+                          </span>
+                        </div>
+                        {isFromMe && (
+                          <p className="text-sm text-red-500 dark:text-red-400 mt-1">
+                            {t.youOwe} {formatCurrency(debt.amount, currency)} {t.to} {debt.to.name}
+                          </p>
+                        )}
+                        {isToMe && (
+                          <p className="text-sm text-green-500 dark:text-green-400 mt-1">
+                            {debt.from.name} {t.owes} {formatCurrency(debt.amount, currency)}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             {/* Summary */}
-            <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up stagger-1">
+            <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up stagger-3">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 {t.summary}
               </h2>
@@ -646,6 +790,16 @@ export function RoomClient({
                 <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
                   <span className="font-semibold text-gray-900 dark:text-white">{t.total}</span>
                   <span className="font-bold text-xl text-gray-900 dark:text-white">{formatCurrency(roomTotals.grandTotal, currency)}</span>
+                </div>
+                <div className="flex justify-between text-green-600 dark:text-green-400">
+                  <span>{t.paid}</span>
+                  <span>-{formatCurrency(totalPaid, currency)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <span className="font-semibold text-orange-600 dark:text-orange-400">{t.remainingToPay}</span>
+                  <span className="font-bold text-xl text-orange-600 dark:text-orange-400">
+                    {formatCurrency(Math.max(0, remainingToPay), currency)}
+                  </span>
                 </div>
               </div>
             </section>

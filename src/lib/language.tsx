@@ -71,6 +71,11 @@ interface Translations {
   paid: string;
   payFor: string;
   markAsPaid: string;
+  cancelPayment: string;
+  remainingToPay: string;
+  allPaid: string;
+  whoOwesWhat: string;
+  paidFor: string;
 
   // Summary
   summary: string;
@@ -180,6 +185,11 @@ const translations: Record<Language, Translations> = {
     paid: 'Payé',
     payFor: 'Payer pour',
     markAsPaid: 'Marquer comme payé',
+    cancelPayment: 'Annuler',
+    remainingToPay: 'Reste à payer',
+    allPaid: 'Tout est payé !',
+    whoOwesWhat: 'Qui doit quoi à qui',
+    paidFor: 'a payé pour',
 
     // Summary
     summary: 'Résumé',
@@ -287,6 +297,11 @@ const translations: Record<Language, Translations> = {
     paid: 'Paid',
     payFor: 'Pay for',
     markAsPaid: 'Mark as paid',
+    cancelPayment: 'Cancel',
+    remainingToPay: 'Remaining to pay',
+    allPaid: 'All paid!',
+    whoOwesWhat: 'Who owes what to whom',
+    paidFor: 'paid for',
 
     // Summary
     summary: 'Summary',
