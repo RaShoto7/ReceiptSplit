@@ -4,25 +4,20 @@ import { Room, Participant, Item, Payment, Currency, RoomStatus } from '@/types'
 // Create a connection pool
 let pool: Pool | null = null;
 
-function getPool(): Pool {
-  if (!pool) {
-    // Prefer pooled connection for Supabase (SESSION mode)
-    let connectionString =
-      process.env.POSTGRES_URL ||
-      process.env.DATABASE_URL ||
-      process.env.POSTGRES_URL_NON_POOLING;
-
-    if (!connectionString) {
-      throw new Error('Database not configured. Please set POSTGRES_URL or DATABASE_URL.');
-    }
-
-    // Remove any existing sslmode from URL to avoid conflicts
-    connectionString = connectionString.replace(/[?&]sslmode=[^&]*/g, '');
-    connectionString = connectionString.replace(/\?&/, '?').replace(/[?&]$/, '');
+function parseConnectionString(urlString: string): PoolConfig {
+  // Parse the URL properly to avoid any encoding issues
+  try {
+    // Handle postgres:// vs postgresql://
+    const normalizedUrl = urlString.replace(/^postgres:\/\//, 'postgresql://');
+    const url = new URL(normalizedUrl);
 
     const config: PoolConfig = {
-      connectionString,
-      max: 1, // Reduce to 1 for serverless - Supabase free tier has limited connections
+      host: url.hostname,
+      port: parseInt(url.port) || 5432,
+      database: url.pathname.slice(1) || 'postgres', // Remove leading /
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      max: 1,
       idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 10000,
       ssl: {
@@ -30,6 +25,31 @@ function getPool(): Pool {
       },
     };
 
+    console.log('DB Config: host=%s, port=%d, database=%s, user=%s',
+      config.host, config.port, config.database, config.user);
+
+    return config;
+  } catch (error) {
+    console.error('Failed to parse connection string:', error);
+    throw new Error('Invalid database connection string format');
+  }
+}
+
+function getPool(): Pool {
+  if (!pool) {
+    // Check for DATABASE_URL first (manually set), then Vercel integration vars
+    const connectionString =
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_URL ||
+      process.env.POSTGRES_URL_NON_POOLING;
+
+    if (!connectionString) {
+      throw new Error('Database not configured. Please set DATABASE_URL or POSTGRES_URL.');
+    }
+
+    console.log('Using connection string starting with:', connectionString.substring(0, 50) + '...');
+
+    const config = parseConnectionString(connectionString);
     pool = new Pool(config);
 
     pool.on('error', (err) => {
