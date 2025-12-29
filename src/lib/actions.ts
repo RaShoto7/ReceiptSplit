@@ -7,88 +7,100 @@ import {
   createRoom as dbCreateRoom,
   addParticipant as dbAddParticipant,
   removeParticipant as dbRemoveParticipant,
-  setPayerStatus as dbSetPayerStatus,
   addItem as dbAddItem,
   removeItem as dbRemoveItem,
-  setItemAssignments as dbSetItemAssignments,
+  addPayment as dbAddPayment,
+  removePayment as dbRemovePayment,
+  updateRoomStatus as dbUpdateRoomStatus,
   updateRoomTipTax as dbUpdateRoomTipTax,
+  getParticipantBySession,
   initializeDatabase,
 } from './db';
-import { Currency, TipTaxType } from '@/types';
+import { Currency, RoomStatus } from '@/types';
 
 // Generate short room ID
 function generateRoomId(): string {
   return nanoid(8);
 }
 
-// Create a new room
+// Create a new room and join as creator
 export async function createRoomAction(formData: FormData) {
   await initializeDatabase();
 
   const title = formData.get('title') as string;
-  const currency = (formData.get('currency') as Currency) || 'USD';
+  const currency = (formData.get('currency') as Currency) || 'EUR';
+  const creatorName = formData.get('creatorName') as string;
+  const sessionToken = formData.get('sessionToken') as string;
+
+  if (!creatorName || !creatorName.trim()) {
+    return { error: 'Name is required' };
+  }
+
+  if (!sessionToken) {
+    return { error: 'Session token is required' };
+  }
 
   const roomId = generateRoomId();
-  await dbCreateRoom(roomId, currency, title || undefined);
+
+  // Create the room
+  await dbCreateRoom(roomId, currency, sessionToken, title || undefined);
+
+  // Add the creator as first participant
+  const participantId = nanoid();
+  await dbAddParticipant(participantId, roomId, creatorName.trim(), sessionToken, true);
 
   redirect(`/r/${roomId}`);
 }
 
-// Add a participant
-export async function addParticipantAction(formData: FormData) {
+// Join a room as a participant
+export async function joinRoomAction(formData: FormData) {
   const roomId = formData.get('roomId') as string;
   const name = formData.get('name') as string;
+  const sessionToken = formData.get('sessionToken') as string;
 
   if (!name || !name.trim()) {
     return { error: 'Name is required' };
   }
 
+  if (!sessionToken) {
+    return { error: 'Session token is required' };
+  }
+
+  // Check if already joined
+  const existing = await getParticipantBySession(roomId, sessionToken);
+  if (existing) {
+    return { error: 'already_joined', participantId: existing.id };
+  }
+
   const participantId = nanoid();
-  await dbAddParticipant(participantId, roomId, name.trim());
+  await dbAddParticipant(participantId, roomId, name.trim(), sessionToken, false);
 
   revalidatePath(`/r/${roomId}`);
-  return { success: true };
+  return { success: true, participantId };
 }
 
-// Remove a participant
-export async function removeParticipantAction(formData: FormData): Promise<void> {
-  const participantId = formData.get('participantId') as string;
-  const roomId = formData.get('roomId') as string;
-
-  await dbRemoveParticipant(participantId);
-
-  revalidatePath(`/r/${roomId}`);
-}
-
-// Set payer status
-export async function setPayerAction(formData: FormData): Promise<void> {
-  const participantId = formData.get('participantId') as string;
-  const roomId = formData.get('roomId') as string;
-  const isPayer = formData.get('isPayer') === 'true';
-
-  await dbSetPayerStatus(participantId, isPayer, roomId);
-
-  revalidatePath(`/r/${roomId}`);
-}
-
-// Add an item
+// Add an item (linked to the participant who adds it)
 export async function addItemAction(formData: FormData) {
   const roomId = formData.get('roomId') as string;
   const name = formData.get('name') as string;
-  const amount = parseFloat(formData.get('amount') as string);
+  const price = parseFloat(formData.get('price') as string);
   const quantity = parseInt(formData.get('quantity') as string) || 1;
-  const category = formData.get('category') as string;
+  const participantId = formData.get('participantId') as string;
 
   if (!name || !name.trim()) {
     return { error: 'Item name is required' };
   }
 
-  if (isNaN(amount) || amount <= 0) {
-    return { error: 'Valid amount is required' };
+  if (isNaN(price) || price <= 0) {
+    return { error: 'Valid price is required' };
+  }
+
+  if (!participantId) {
+    return { error: 'Participant ID is required' };
   }
 
   const itemId = nanoid();
-  await dbAddItem(itemId, roomId, name.trim(), amount, quantity, category || undefined);
+  await dbAddItem(itemId, roomId, name.trim(), price, quantity, participantId);
 
   revalidatePath(`/r/${roomId}`);
   return { success: true, itemId };
@@ -104,26 +116,61 @@ export async function removeItemAction(formData: FormData): Promise<void> {
   revalidatePath(`/r/${roomId}`);
 }
 
-// Update item assignments
-export async function updateAssignmentsAction(formData: FormData): Promise<void> {
-  const itemId = formData.get('itemId') as string;
+// Remove a participant
+export async function removeParticipantAction(formData: FormData): Promise<void> {
+  const participantId = formData.get('participantId') as string;
   const roomId = formData.get('roomId') as string;
-  const participantIds = formData.getAll('participantIds') as string[];
 
-  await dbSetItemAssignments(itemId, participantIds);
+  await dbRemoveParticipant(participantId);
 
   revalidatePath(`/r/${roomId}`);
 }
 
-// Update tip and tax settings
+// Mark item as paid by a participant
+export async function payItemAction(formData: FormData) {
+  const roomId = formData.get('roomId') as string;
+  const itemId = formData.get('itemId') as string;
+  const participantId = formData.get('participantId') as string;
+  const amount = parseFloat(formData.get('amount') as string);
+
+  if (!itemId || !participantId || isNaN(amount)) {
+    return { error: 'Invalid payment data' };
+  }
+
+  const paymentId = nanoid();
+  await dbAddPayment(paymentId, roomId, itemId, participantId, amount);
+
+  revalidatePath(`/r/${roomId}`);
+  return { success: true };
+}
+
+// Remove a payment
+export async function removePaymentAction(formData: FormData): Promise<void> {
+  const paymentId = formData.get('paymentId') as string;
+  const roomId = formData.get('roomId') as string;
+
+  await dbRemovePayment(paymentId);
+
+  revalidatePath(`/r/${roomId}`);
+}
+
+// Update room status (active -> paying -> closed)
+export async function updateRoomStatusAction(formData: FormData): Promise<void> {
+  const roomId = formData.get('roomId') as string;
+  const status = formData.get('status') as RoomStatus;
+
+  await dbUpdateRoomStatus(roomId, status);
+
+  revalidatePath(`/r/${roomId}`);
+}
+
+// Update tip and tax percentages
 export async function updateTipTaxAction(formData: FormData): Promise<void> {
   const roomId = formData.get('roomId') as string;
-  const tipType = formData.get('tipType') as TipTaxType;
-  const tipValue = parseFloat(formData.get('tipValue') as string) || 0;
-  const taxType = formData.get('taxType') as TipTaxType;
-  const taxValue = parseFloat(formData.get('taxValue') as string) || 0;
+  const tipPercent = parseFloat(formData.get('tipPercent') as string) || 0;
+  const taxPercent = parseFloat(formData.get('taxPercent') as string) || 0;
 
-  await dbUpdateRoomTipTax(roomId, tipType, tipValue, taxType, taxValue);
+  await dbUpdateRoomTipTax(roomId, tipPercent, taxPercent);
 
   revalidatePath(`/r/${roomId}`);
 }

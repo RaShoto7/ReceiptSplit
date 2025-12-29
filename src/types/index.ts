@@ -1,56 +1,71 @@
 export type Currency = 'EUR' | 'USD' | 'GBP';
 export type TipTaxType = 'percent' | 'fixed' | 'none';
+export type RoomStatus = 'active' | 'paying' | 'closed';
 
 export interface Room {
   id: string;
   title: string | null;
   currency: Currency;
-  tip_type: TipTaxType;
-  tip_value: number;
-  tax_type: TipTaxType;
-  tax_value: number;
-  created_at: Date;
+  status: RoomStatus;
+  creator_session_id: string;
+  tip_percent: number;
+  tax_percent: number;
+  created_at: string;
 }
 
 export interface Participant {
   id: string;
   room_id: string;
   name: string;
-  is_payer: boolean;
-  created_at: Date;
+  session_token: string;
+  is_creator: boolean;
+  created_at: string;
 }
 
 export interface Item {
   id: string;
   room_id: string;
   name: string;
-  amount: number;
+  price: number;
   quantity: number;
-  category: string | null;
-  created_at: Date;
+  created_by_participant_id: string;
+  created_at: string;
 }
 
-export interface ItemAssignment {
+export interface Payment {
+  id: string;
+  room_id: string;
   item_id: string;
-  participant_id: string;
+  paid_by_participant_id: string;
+  amount: number;
+  created_at: string;
 }
 
 // Computed types for display
-export interface ParticipantTotal {
-  participantId: string;
-  participantName: string;
+export interface ParticipantWithItems extends Participant {
+  items: Item[];
   subtotal: number;
-  tipShare: number;
-  taxShare: number;
+  tipAmount: number;
+  taxAmount: number;
   total: number;
+  amountPaid: number;
+  amountOwed: number;
 }
 
-export interface Settlement {
-  from: string;
-  fromName: string;
-  to: string;
-  toName: string;
-  amount: number;
+export interface ItemWithOwner extends Item {
+  ownerName: string;
+  isPaidFor: boolean;
+  paidByName?: string;
+}
+
+export interface DebtSummary {
+  participantId: string;
+  participantName: string;
+  totalOwed: number;      // What they owe for their items
+  totalPaid: number;      // What they've paid
+  netBalance: number;     // Positive = owed money, Negative = owes money
+  owesTo: { name: string; amount: number }[];
+  owedBy: { name: string; amount: number }[];
 }
 
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
@@ -58,3 +73,11 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   USD: '$',
   GBP: '£',
 };
+
+// For localStorage session
+export interface UserSession {
+  sessionToken: string;
+  participantId?: string;
+  participantName?: string;
+  roomId?: string;
+}

@@ -1,11 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { getFullRoomData, initializeDatabase, isDatabaseConfigured } from '@/lib/db';
-import { calculateParticipantTotals, calculateSettlements } from '@/lib/calculations';
-import { RoomHeader } from '@/components/RoomHeader';
-import { ParticipantsList } from '@/components/ParticipantsList';
-import { ItemsList } from '@/components/ItemsList';
-import { TipTaxSettings } from '@/components/TipTaxSettings';
-import { ResultsSummary } from '@/components/ResultsSummary';
+import { RoomClient } from '@/components/RoomClient';
 
 interface PageProps {
   params: Promise<{ roomId: string }>;
@@ -26,36 +21,14 @@ export default async function RoomPage({ params }: PageProps) {
     notFound();
   }
 
-  const { room, participants, items, assignments } = data;
-
-  const totals = calculateParticipantTotals(room, participants, items, assignments);
-  const settlements = calculateSettlements(participants, totals);
+  const { room, participants, items, payments } = data;
 
   return (
-    <div className="space-y-6 pb-8">
-      <RoomHeader room={room} />
-
-      <ParticipantsList
-        roomId={roomId}
-        participants={participants}
-      />
-
-      <ItemsList
-        roomId={roomId}
-        items={items}
-        participants={participants}
-        assignments={assignments}
-        currency={room.currency}
-      />
-
-      <TipTaxSettings room={room} />
-
-      <ResultsSummary
-        room={room}
-        participants={participants}
-        totals={totals}
-        settlements={settlements}
-      />
-    </div>
+    <RoomClient
+      initialRoom={room}
+      initialParticipants={participants}
+      initialItems={items}
+      initialPayments={payments}
+    />
   );
 }

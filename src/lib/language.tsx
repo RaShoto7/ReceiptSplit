@@ -11,65 +11,88 @@ interface Translations {
   createNewBill: string;
   billName: string;
   billNamePlaceholder: string;
+  yourName: string;
+  yourNamePlaceholder: string;
   currency: string;
-  createBill: string;
+  createAndShare: string;
   noLoginRequired: string;
 
-  // Room
+  // Room - Join
+  joinBill: string;
+  enterYourName: string;
+  joinPlaceholder: string;
+  join: string;
+  joining: string;
+
+  // Room - Header
   untitledBill: string;
   share: string;
   copied: string;
+  linkCopied: string;
+  status: string;
+  statusActive: string;
+  statusPaying: string;
+  statusClosed: string;
+  participants: string;
 
-  // Participants
-  people: string;
-  addPeoplePlaceholder: string;
-  addPersonPlaceholder: string;
-  add: string;
-  payer: string;
-  setPayer: string;
-  removePayer: string;
-  alreadyInGroup: string;
-
-  // Items
-  items: string;
-  addPeopleFirst: string;
-  addItemsToSplit: string;
-  itemName: string;
+  // Room - Active phase
+  myItems: string;
+  addMyItem: string;
   itemNamePlaceholder: string;
   price: string;
+  pricePlaceholder: string;
   quantity: string;
-  categoryOptional: string;
   addItem: string;
-  notAssigned: string;
-  splitByAll: string;
-  splitBy: string;
-  selectAll: string;
-  clear: string;
+  adding: string;
+  noItemsYet: string;
+  addYourFirstItem: string;
+  yourTotal: string;
+
+  // All items view
+  allItems: string;
+  noItemsInBill: string;
+  addedBy: string;
 
   // Tip & Tax
   tipAndTax: string;
   tip: string;
   tax: string;
-  noTip: string;
-  noTax: string;
-  percentage: string;
-  fixedAmount: string;
-  update: string;
-  updating: string;
+  save: string;
+  saving: string;
+
+  // Payment phase
+  finalizeBill: string;
+  finalizing: string;
+  readyToPay: string;
+  paymentMode: string;
+  yourShare: string;
+  payMyItems: string;
+  paying: string;
+  paid: string;
+  payFor: string;
+  markAsPaid: string;
 
   // Summary
   summary: string;
-  addPeopleAndItems: string;
   subtotal: string;
-  whoPaysWho: string;
-  whoOwesWho: string;
-  copySummary: string;
-  billSplit: string;
-  breakdown: string;
-  settlements: string;
   total: string;
-  splitWith: string;
-  untitled: string;
+  youOwe: string;
+  youAreOwed: string;
+  settled: string;
+  settlements: string;
+  owes: string;
+  to: string;
+
+  // Misc
+  copySummary: string;
+  close: string;
+  cancel: string;
+  confirm: string;
+  loading: string;
+  error: string;
+  success: string;
+  you: string;
+  creator: string;
 
   // Settings
   settings: string;
@@ -80,158 +103,228 @@ interface Translations {
   // Errors
   nameRequired: string;
   itemNameRequired: string;
-  validAmountRequired: string;
+  validPriceRequired: string;
+  alreadyJoined: string;
 
   // 404
   billNotFound: string;
+  billNotFoundDesc: string;
   createNewBillButton: string;
 }
 
 const translations: Record<Language, Translations> = {
   fr: {
+    // Home page
     appName: 'ReceiptSplit',
-    tagline: 'Partagez vos additions facilement',
+    tagline: 'Partagez vos additions en temps réel',
     createNewBill: 'Nouvelle Addition',
     billName: 'Nom de l\'addition',
     billNamePlaceholder: 'Ex: Dîner chez Mario',
+    yourName: 'Votre nom',
+    yourNamePlaceholder: 'Ex: Jean',
     currency: 'Devise',
-    createBill: 'Créer l\'addition',
-    noLoginRequired: 'Aucune inscription requise. Partagez le lien !',
+    createAndShare: 'Créer et Partager',
+    noLoginRequired: 'Aucune inscription. Partagez le lien et chacun ajoute ses articles !',
 
+    // Room - Join
+    joinBill: 'Rejoindre l\'addition',
+    enterYourName: 'Entrez votre nom pour rejoindre',
+    joinPlaceholder: 'Votre pseudo...',
+    join: 'Rejoindre',
+    joining: 'Connexion...',
+
+    // Room - Header
     untitledBill: 'Addition sans titre',
     share: 'Partager',
     copied: 'Copié !',
+    linkCopied: 'Lien copié !',
+    status: 'Statut',
+    statusActive: 'En cours',
+    statusPaying: 'Paiement',
+    statusClosed: 'Terminé',
+    participants: 'Participants',
 
-    people: 'Participants',
-    addPeoplePlaceholder: 'Ajouter des participants pour partager',
-    addPersonPlaceholder: 'Nom du participant...',
-    add: 'Ajouter',
-    payer: 'Payeur',
-    setPayer: 'Définir payeur',
-    removePayer: 'Retirer payeur',
-    alreadyInGroup: 'est déjà dans le groupe',
-
-    items: 'Articles',
-    addPeopleFirst: 'Ajoutez d\'abord des participants',
-    addItemsToSplit: 'Ajoutez des articles à partager',
-    itemName: 'Article',
-    itemNamePlaceholder: 'Nom de l\'article...',
+    // Room - Active phase
+    myItems: 'Mes articles',
+    addMyItem: 'Ajouter un article',
+    itemNamePlaceholder: 'Ex: Pizza Margherita',
     price: 'Prix',
+    pricePlaceholder: '0.00',
     quantity: 'Qté',
-    categoryOptional: 'Catégorie (optionnel)',
     addItem: 'Ajouter',
-    notAssigned: 'Non assigné',
-    splitByAll: 'Partagé par tous',
-    splitBy: 'Partagé par',
-    selectAll: 'Tout sélectionner',
-    clear: 'Effacer',
+    adding: 'Ajout...',
+    noItemsYet: 'Aucun article',
+    addYourFirstItem: 'Ajoutez votre premier article',
+    yourTotal: 'Votre total',
 
+    // All items view
+    allItems: 'Toute l\'addition',
+    noItemsInBill: 'Aucun article dans l\'addition',
+    addedBy: 'Ajouté par',
+
+    // Tip & Tax
     tipAndTax: 'Pourboire & Taxes',
     tip: 'Pourboire',
-    tax: 'Taxe',
-    noTip: 'Pas de pourboire',
-    noTax: 'Pas de taxe',
-    percentage: 'Pourcentage',
-    fixedAmount: 'Montant fixe',
-    update: 'Mettre à jour',
-    updating: 'Mise à jour...',
+    tax: 'Taxes',
+    save: 'Enregistrer',
+    saving: 'Enregistrement...',
 
+    // Payment phase
+    finalizeBill: 'Finaliser l\'addition',
+    finalizing: 'Finalisation...',
+    readyToPay: 'Prêt à payer ?',
+    paymentMode: 'Mode Paiement',
+    yourShare: 'Votre part',
+    payMyItems: 'Payer mes articles',
+    paying: 'Paiement...',
+    paid: 'Payé',
+    payFor: 'Payer pour',
+    markAsPaid: 'Marquer comme payé',
+
+    // Summary
     summary: 'Résumé',
-    addPeopleAndItems: 'Ajoutez des participants et articles pour voir le partage',
     subtotal: 'Sous-total',
-    whoPaysWho: 'Qui paie qui',
-    whoOwesWho: 'Qui doit combien',
-    copySummary: 'Copier le résumé',
-    billSplit: 'Partage d\'addition',
-    breakdown: 'Détail',
-    settlements: 'Règlements',
     total: 'Total',
-    splitWith: 'Partagé avec ReceiptSplit',
-    untitled: 'Sans titre',
+    youOwe: 'Vous devez',
+    youAreOwed: 'On vous doit',
+    settled: 'Réglé',
+    settlements: 'Règlements',
+    owes: 'doit',
+    to: 'à',
 
+    // Misc
+    copySummary: 'Copier le résumé',
+    close: 'Fermer',
+    cancel: 'Annuler',
+    confirm: 'Confirmer',
+    loading: 'Chargement...',
+    error: 'Erreur',
+    success: 'Succès',
+    you: 'Vous',
+    creator: 'Créateur',
+
+    // Settings
     settings: 'Paramètres',
     language: 'Langue',
     french: 'Français',
     english: 'English',
 
+    // Errors
     nameRequired: 'Le nom est requis',
     itemNameRequired: 'Le nom de l\'article est requis',
-    validAmountRequired: 'Un montant valide est requis',
+    validPriceRequired: 'Un prix valide est requis',
+    alreadyJoined: 'Vous avez déjà rejoint cette addition',
 
-    billNotFound: 'Cette addition n\'existe pas ou a été supprimée.',
+    // 404
+    billNotFound: 'Addition introuvable',
+    billNotFoundDesc: 'Cette addition n\'existe pas ou a été supprimée.',
     createNewBillButton: 'Créer une nouvelle addition',
   },
   en: {
+    // Home page
     appName: 'ReceiptSplit',
-    tagline: 'Split bills easily with friends',
+    tagline: 'Split bills in real-time with friends',
     createNewBill: 'Create a New Bill',
     billName: 'Bill Name',
     billNamePlaceholder: 'e.g., Dinner at Joe\'s',
+    yourName: 'Your Name',
+    yourNamePlaceholder: 'e.g., John',
     currency: 'Currency',
-    createBill: 'Create Bill',
-    noLoginRequired: 'No login required. Share the link to split!',
+    createAndShare: 'Create & Share',
+    noLoginRequired: 'No login needed. Share the link and everyone adds their items!',
 
+    // Room - Join
+    joinBill: 'Join the Bill',
+    enterYourName: 'Enter your name to join',
+    joinPlaceholder: 'Your name...',
+    join: 'Join',
+    joining: 'Joining...',
+
+    // Room - Header
     untitledBill: 'Untitled Bill',
     share: 'Share',
     copied: 'Copied!',
+    linkCopied: 'Link copied!',
+    status: 'Status',
+    statusActive: 'Active',
+    statusPaying: 'Paying',
+    statusClosed: 'Closed',
+    participants: 'Participants',
 
-    people: 'People',
-    addPeoplePlaceholder: 'Add people to split the bill with',
-    addPersonPlaceholder: 'Add person...',
-    add: 'Add',
-    payer: 'Payer',
-    setPayer: 'Set payer',
-    removePayer: 'Remove payer',
-    alreadyInGroup: 'is already in the group',
-
-    items: 'Items',
-    addPeopleFirst: 'Add people first before adding items',
-    addItemsToSplit: 'Add items to split',
-    itemName: 'Item',
-    itemNamePlaceholder: 'Item name...',
+    // Room - Active phase
+    myItems: 'My Items',
+    addMyItem: 'Add an item',
+    itemNamePlaceholder: 'e.g., Margherita Pizza',
     price: 'Price',
+    pricePlaceholder: '0.00',
     quantity: 'Qty',
-    categoryOptional: 'Category (optional)',
-    addItem: 'Add Item',
-    notAssigned: 'Not assigned',
-    splitByAll: 'Split by all',
-    splitBy: 'Split by',
-    selectAll: 'Select all',
-    clear: 'Clear',
+    addItem: 'Add',
+    adding: 'Adding...',
+    noItemsYet: 'No items yet',
+    addYourFirstItem: 'Add your first item',
+    yourTotal: 'Your total',
 
+    // All items view
+    allItems: 'Full Bill',
+    noItemsInBill: 'No items in the bill yet',
+    addedBy: 'Added by',
+
+    // Tip & Tax
     tipAndTax: 'Tip & Tax',
     tip: 'Tip',
     tax: 'Tax',
-    noTip: 'No tip',
-    noTax: 'No tax',
-    percentage: 'Percentage',
-    fixedAmount: 'Fixed amount',
-    update: 'Update',
-    updating: 'Updating...',
+    save: 'Save',
+    saving: 'Saving...',
 
+    // Payment phase
+    finalizeBill: 'Finalize Bill',
+    finalizing: 'Finalizing...',
+    readyToPay: 'Ready to pay?',
+    paymentMode: 'Payment Mode',
+    yourShare: 'Your share',
+    payMyItems: 'Pay my items',
+    paying: 'Paying...',
+    paid: 'Paid',
+    payFor: 'Pay for',
+    markAsPaid: 'Mark as paid',
+
+    // Summary
     summary: 'Summary',
-    addPeopleAndItems: 'Add people and items to see the split',
     subtotal: 'Subtotal',
-    whoPaysWho: 'Who pays who',
-    whoOwesWho: 'Who owes who',
-    copySummary: 'Copy Summary',
-    billSplit: 'Bill Split',
-    breakdown: 'Breakdown',
-    settlements: 'Settlements',
     total: 'Total',
-    splitWith: 'Split with ReceiptSplit',
-    untitled: 'Untitled',
+    youOwe: 'You owe',
+    youAreOwed: 'You are owed',
+    settled: 'Settled',
+    settlements: 'Settlements',
+    owes: 'owes',
+    to: 'to',
 
+    // Misc
+    copySummary: 'Copy Summary',
+    close: 'Close',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    loading: 'Loading...',
+    error: 'Error',
+    success: 'Success',
+    you: 'You',
+    creator: 'Creator',
+
+    // Settings
     settings: 'Settings',
     language: 'Language',
     french: 'Français',
     english: 'English',
 
+    // Errors
     nameRequired: 'Name is required',
     itemNameRequired: 'Item name is required',
-    validAmountRequired: 'Valid amount is required',
+    validPriceRequired: 'Valid price is required',
+    alreadyJoined: 'You have already joined this bill',
 
-    billNotFound: 'This bill doesn\'t exist or has been deleted.',
+    // 404
+    billNotFound: 'Bill not found',
+    billNotFoundDesc: 'This bill doesn\'t exist or has been deleted.',
     createNewBillButton: 'Create New Bill',
   },
 };

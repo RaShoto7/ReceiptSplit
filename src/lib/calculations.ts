@@ -1,139 +1,217 @@
-import { Room, Participant, Item, ItemAssignment, ParticipantTotal, Settlement, TipTaxType } from '@/types';
+import { Room, Participant, Item, Payment, Currency, CURRENCY_SYMBOLS } from '@/types';
 
-// Calculate tip/tax amount from type and value
-function calculateTipTax(subtotal: number, type: TipTaxType, value: number): number {
-  if (type === 'none' || value === 0) return 0;
-  if (type === 'percent') return subtotal * (value / 100);
-  return value; // fixed
+export function formatCurrency(amount: number, currency: Currency): string {
+  const symbol = CURRENCY_SYMBOLS[currency];
+  const formatted = amount.toFixed(2);
+
+  if (currency === 'EUR') {
+    return `${formatted} ${symbol}`;
+  }
+  return `${symbol}${formatted}`;
 }
 
-// Calculate per-participant totals
-export function calculateParticipantTotals(
+// Calculate total for an item (price * quantity)
+export function getItemTotal(item: Item): number {
+  return Number(item.price) * item.quantity;
+}
+
+// Calculate subtotal for a participant (sum of their items)
+export function getParticipantSubtotal(
+  participantId: string,
+  items: Item[]
+): number {
+  return items
+    .filter(item => item.created_by_participant_id === participantId)
+    .reduce((sum, item) => sum + getItemTotal(item), 0);
+}
+
+// Calculate tip amount for a participant
+export function getParticipantTip(
+  subtotal: number,
+  tipPercent: number
+): number {
+  return subtotal * (tipPercent / 100);
+}
+
+// Calculate tax amount for a participant
+export function getParticipantTax(
+  subtotal: number,
+  taxPercent: number
+): number {
+  return subtotal * (taxPercent / 100);
+}
+
+// Calculate total for a participant (subtotal + tip + tax)
+export function getParticipantTotal(
+  participantId: string,
+  items: Item[],
+  tipPercent: number,
+  taxPercent: number
+): { subtotal: number; tip: number; tax: number; total: number } {
+  const subtotal = getParticipantSubtotal(participantId, items);
+  const tip = getParticipantTip(subtotal, tipPercent);
+  const tax = getParticipantTax(subtotal, taxPercent);
+  const total = subtotal + tip + tax;
+
+  return { subtotal, tip, tax, total };
+}
+
+// Calculate how much a participant has paid (for others' items)
+export function getAmountPaidForOthers(
+  participantId: string,
+  payments: Payment[],
+  items: Item[]
+): number {
+  return payments
+    .filter(p => p.paid_by_participant_id === participantId)
+    .filter(p => {
+      const item = items.find(i => i.id === p.item_id);
+      return item && item.created_by_participant_id !== participantId;
+    })
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+}
+
+// Calculate how much others have paid for a participant's items
+export function getAmountPaidByOthers(
+  participantId: string,
+  payments: Payment[],
+  items: Item[]
+): number {
+  const participantItemIds = items
+    .filter(i => i.created_by_participant_id === participantId)
+    .map(i => i.id);
+
+  return payments
+    .filter(p => participantItemIds.includes(p.item_id))
+    .filter(p => p.paid_by_participant_id !== participantId)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+}
+
+// Check if an item is fully paid
+export function isItemPaid(itemId: string, payments: Payment[], items: Item[]): boolean {
+  const item = items.find(i => i.id === itemId);
+  if (!item) return false;
+
+  const totalPaid = payments
+    .filter(p => p.item_id === itemId)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  return totalPaid >= getItemTotal(item);
+}
+
+// Get who paid for an item
+export function getItemPayer(
+  itemId: string,
+  payments: Payment[],
+  participants: Participant[]
+): Participant | null {
+  const payment = payments.find(p => p.item_id === itemId);
+  if (!payment) return null;
+
+  return participants.find(p => p.id === payment.paid_by_participant_id) || null;
+}
+
+// Calculate room totals
+export function getRoomTotals(
   room: Room,
   participants: Participant[],
   items: Item[],
-  assignments: ItemAssignment[]
-): ParticipantTotal[] {
-  // Create a map of item costs per participant
-  const participantSubtotals = new Map<string, number>();
+  payments: Payment[]
+) {
+  const subtotal = items.reduce((sum, item) => sum + getItemTotal(item), 0);
+  const tipTotal = subtotal * (Number(room.tip_percent) / 100);
+  const taxTotal = subtotal * (Number(room.tax_percent) / 100);
+  const grandTotal = subtotal + tipTotal + taxTotal;
 
-  // Initialize all participants with 0
-  participants.forEach(p => participantSubtotals.set(p.id, 0));
+  const participantSummaries = participants.map(participant => {
+    const { subtotal: pSubtotal, tip, tax, total } = getParticipantTotal(
+      participant.id,
+      items,
+      Number(room.tip_percent),
+      Number(room.tax_percent)
+    );
 
-  // Calculate each participant's share of each item
-  items.forEach(item => {
-    const itemAssignments = assignments.filter(a => a.item_id === item.id);
-    if (itemAssignments.length === 0) return; // Item not assigned to anyone
+    const paidForOthers = getAmountPaidForOthers(participant.id, payments, items);
+    const paidByOthers = getAmountPaidByOthers(participant.id, payments, items);
 
-    const totalItemCost = Number(item.amount) * item.quantity;
-    const costPerPerson = totalItemCost / itemAssignments.length;
-
-    itemAssignments.forEach(assignment => {
-      const current = participantSubtotals.get(assignment.participant_id) || 0;
-      participantSubtotals.set(assignment.participant_id, current + costPerPerson);
-    });
-  });
-
-  // Calculate grand subtotal for proportional tip/tax
-  const grandSubtotal = Array.from(participantSubtotals.values()).reduce((sum, v) => sum + v, 0);
-
-  // Calculate total tip and tax
-  const totalTip = calculateTipTax(grandSubtotal, room.tip_type as TipTaxType, Number(room.tip_value));
-  const totalTax = calculateTipTax(grandSubtotal, room.tax_type as TipTaxType, Number(room.tax_value));
-
-  // Build result array with proportional tip/tax
-  return participants.map(p => {
-    const subtotal = participantSubtotals.get(p.id) || 0;
-    const proportion = grandSubtotal > 0 ? subtotal / grandSubtotal : 0;
-    const tipShare = totalTip * proportion;
-    const taxShare = totalTax * proportion;
+    // Net balance: positive means they're owed money, negative means they owe
+    const netBalance = paidForOthers - paidByOthers;
 
     return {
-      participantId: p.id,
-      participantName: p.name,
-      subtotal,
-      tipShare,
-      taxShare,
-      total: subtotal + tipShare + taxShare,
+      participant,
+      subtotal: pSubtotal,
+      tip,
+      tax,
+      total,
+      paidForOthers,
+      paidByOthers,
+      netBalance,
+      // What they still need to pay (their total minus what others paid for them)
+      owes: Math.max(0, total - paidByOthers),
+      // What they're owed (what they paid for others)
+      owed: paidForOthers,
     };
   });
+
+  return {
+    subtotal,
+    tipTotal,
+    taxTotal,
+    grandTotal,
+    participantSummaries,
+  };
 }
 
-// Calculate simplified settlement (who owes who)
+// Calculate settlements (simplified)
 export function calculateSettlements(
   participants: Participant[],
-  totals: ParticipantTotal[]
-): Settlement[] {
-  // Find designated payer
-  const payer = participants.find(p => p.is_payer);
+  items: Item[],
+  payments: Payment[],
+  tipPercent: number,
+  taxPercent: number
+): { from: Participant; to: Participant; amount: number }[] {
+  const settlements: { from: Participant; to: Participant; amount: number }[] = [];
 
-  if (payer) {
-    // Simple case: everyone pays the payer
-    return totals
-      .filter(t => t.participantId !== payer.id && t.total > 0.01)
-      .map(t => ({
-        from: t.participantId,
-        fromName: t.participantName,
-        to: payer.id,
-        toName: payer.name,
-        amount: t.total,
-      }));
-  }
+  // Calculate net balances for each participant
+  const balances = participants.map(participant => {
+    const { total } = getParticipantTotal(participant.id, items, tipPercent, taxPercent);
+    const paidForOthers = getAmountPaidForOthers(participant.id, payments, items);
+    const paidByOthers = getAmountPaidByOthers(participant.id, payments, items);
 
-  // Complex case: minimize transfers using greedy algorithm
-  // Each person's "balance" is their total (what they owe)
-  // minus their equal share of the grand total
+    // Negative = owes money, Positive = owed money
+    return {
+      participant,
+      balance: paidForOthers - (total - paidByOthers),
+    };
+  });
 
-  const grandTotal = totals.reduce((sum, t) => sum + t.total, 0);
-  const equalShare = grandTotal / participants.length;
+  // Sort: those who owe (negative) first, then those owed (positive)
+  const debtors = balances.filter(b => b.balance < 0).sort((a, b) => a.balance - b.balance);
+  const creditors = balances.filter(b => b.balance > 0).sort((a, b) => b.balance - a.balance);
 
-  // Create balance array: positive = owes money, negative = is owed money
-  const balances = totals.map(t => ({
-    id: t.participantId,
-    name: t.participantName,
-    balance: t.total - equalShare,
-  }));
+  let i = 0;
+  let j = 0;
 
-  const settlements: Settlement[] = [];
-  const debtors = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance);
-  const creditors = balances.filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance);
+  while (i < debtors.length && j < creditors.length) {
+    const debtor = debtors[i];
+    const creditor = creditors[j];
 
-  let debtorIndex = 0;
-  let creditorIndex = 0;
-
-  while (debtorIndex < debtors.length && creditorIndex < creditors.length) {
-    const debtor = debtors[debtorIndex];
-    const creditor = creditors[creditorIndex];
-
-    const amount = Math.min(debtor.balance, -creditor.balance);
+    const amount = Math.min(-debtor.balance, creditor.balance);
 
     if (amount > 0.01) {
       settlements.push({
-        from: debtor.id,
-        fromName: debtor.name,
-        to: creditor.id,
-        toName: creditor.name,
-        amount,
+        from: debtor.participant,
+        to: creditor.participant,
+        amount: Math.round(amount * 100) / 100,
       });
     }
 
-    debtor.balance -= amount;
-    creditor.balance += amount;
+    debtor.balance += amount;
+    creditor.balance -= amount;
 
-    if (debtor.balance < 0.01) debtorIndex++;
-    if (creditor.balance > -0.01) creditorIndex++;
+    if (Math.abs(debtor.balance) < 0.01) i++;
+    if (Math.abs(creditor.balance) < 0.01) j++;
   }
 
   return settlements;
-}
-
-// Format currency
-export function formatCurrency(amount: number, currency: string): string {
-  const symbols: Record<string, string> = {
-    EUR: '€',
-    USD: '$',
-    GBP: '£',
-  };
-  const symbol = symbols[currency] || '$';
-  return `${symbol}${amount.toFixed(2)}`;
 }
