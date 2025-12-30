@@ -15,6 +15,7 @@ import {
   removePhoto as dbRemovePhoto,
   updateRoomStatus as dbUpdateRoomStatus,
   updateRoomTipTax as dbUpdateRoomTipTax,
+  updateRoomBackground as dbUpdateRoomBackground,
   getParticipantBySession,
   initializeDatabase,
 } from './db';
@@ -212,4 +213,20 @@ export async function removePhotoAction(formData: FormData): Promise<void> {
   await dbRemovePhoto(photoId);
 
   revalidatePath(`/r/${roomId}`);
+}
+
+// Update room background (creator only)
+export async function updateRoomBackgroundAction(formData: FormData) {
+  const roomId = formData.get('roomId') as string;
+  const backgroundImage = formData.get('backgroundImage') as string | null;
+
+  // Limit size to ~2MB base64
+  if (backgroundImage && backgroundImage.length > 2.5 * 1024 * 1024) {
+    return { error: 'Image too large. Please choose an image under 2MB.' };
+  }
+
+  await dbUpdateRoomBackground(roomId, backgroundImage || null);
+
+  revalidatePath(`/r/${roomId}`);
+  return { success: true };
 }

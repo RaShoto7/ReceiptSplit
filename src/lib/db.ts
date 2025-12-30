@@ -93,8 +93,14 @@ export async function initializeDatabase() {
         creator_session_id VARCHAR(36) NOT NULL,
         tip_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
         tax_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+        background_image TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add background_image column if it doesn't exist (for existing databases)
+    await db.query(`
+      ALTER TABLE rooms ADD COLUMN IF NOT EXISTS background_image TEXT
     `);
 
     // Participants table
@@ -190,6 +196,17 @@ export async function updateRoomTipTax(
   await db.query(
     'UPDATE rooms SET tip_percent = $1, tax_percent = $2 WHERE id = $3',
     [tipPercent, taxPercent, roomId]
+  );
+}
+
+export async function updateRoomBackground(
+  roomId: string,
+  backgroundImage: string | null
+): Promise<void> {
+  const db = getPool();
+  await db.query(
+    'UPDATE rooms SET background_image = $1 WHERE id = $2',
+    [backgroundImage, roomId]
   );
 }
 

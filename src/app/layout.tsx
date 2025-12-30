@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   title: "ReceiptSplit",
   description: "Partagez vos additions facilement. Split bills easily with friends.",
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: "/logo.svg",
+    apple: "/logo.svg",
   },
 };
 

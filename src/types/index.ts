@@ -10,6 +10,7 @@ export interface Room {
   creator_session_id: string;
   tip_percent: number;
   tax_percent: number;
+  background_image: string | null;
   created_at: string;
 }
 

@@ -2,24 +2,26 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/lib/language';
-import { updateCustomBackground } from './AnimatedBackground';
+import { updateRoomBackgroundAction } from '@/lib/actions';
 
-export function SettingsButton() {
+interface SettingsButtonProps {
+  roomId?: string;
+  isCreator?: boolean;
+  hasBackground?: boolean;
+  onBackgroundChange?: () => void;
+}
+
+export function SettingsButton({ roomId, isCreator, hasBackground, onBackgroundChange }: SettingsButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { language, setLanguage, t } = useLanguage();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [hasCustomBg, setHasCustomBg] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [currentHasBackground, setCurrentHasBackground] = useState(hasBackground);
 
-  // Check if custom background exists
   useEffect(() => {
-    const checkBg = () => {
-      setHasCustomBg(!!localStorage.getItem('receiptsplit-custom-bg'));
-    };
-    checkBg();
-    window.addEventListener('customBgChange', checkBg);
-    return () => window.removeEventListener('customBgChange', checkBg);
-  }, []);
+    setCurrentHasBackground(hasBackground);
+  }, [hasBackground]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -38,28 +40,49 @@ export function SettingsButton() {
     };
   }, [isOpen]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !roomId) return;
 
-    // Check file size (max 2MB to be safe with localStorage)
+    // Check file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       alert('Image too large. Please choose an image under 2MB.');
       return;
     }
 
+    setIsUploading(true);
+
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      updateCustomBackground(result);
-      setHasCustomBg(true);
+    reader.onload = async (event) => {
+      const imageData = event.target?.result as string;
+
+      const formData = new FormData();
+      formData.set('roomId', roomId);
+      formData.set('backgroundImage', imageData);
+
+      await updateRoomBackgroundAction(formData);
+      setCurrentHasBackground(true);
+      setIsUploading(false);
+      onBackgroundChange?.();
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     };
     reader.readAsDataURL(file);
   };
 
-  const handleRemoveBackground = () => {
-    updateCustomBackground(null);
-    setHasCustomBg(false);
+  const handleRemoveBackground = async () => {
+    if (!roomId) return;
+
+    const formData = new FormData();
+    formData.set('roomId', roomId);
+    formData.set('backgroundImage', '');
+
+    await updateRoomBackgroundAction(formData);
+    setCurrentHasBackground(false);
+    onBackgroundChange?.();
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -116,53 +139,66 @@ export function SettingsButton() {
             />
           </div>
 
-          {/* Background Section */}
-          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              {t.background}
-            </p>
-          </div>
+          {/* Background Section - Only show for creator in a room */}
+          {roomId && isCreator && (
+            <>
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {t.background}
+                </p>
+              </div>
 
-          <div className="p-3 space-y-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-              id="bg-upload"
-            />
+              <div className="p-3 space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="bg-upload"
+                />
 
-            <label
-              htmlFor="bg-upload"
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all"
-            >
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/50 dark:to-amber-800/50 flex items-center justify-center">
-                <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </span>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                {t.uploadPhoto}
-              </span>
-            </label>
+                <label
+                  htmlFor="bg-upload"
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all ${
+                    isUploading ? 'opacity-50 pointer-events-none' : ''
+                  }`}
+                >
+                  <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/50 dark:to-amber-800/50 flex items-center justify-center">
+                    {isUploading ? (
+                      <svg className="w-4 h-4 text-amber-600 dark:text-amber-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    {isUploading ? t.loading : t.uploadPhoto}
+                  </span>
+                </label>
 
-            {hasCustomBg && (
-              <button
-                onClick={handleRemoveBackground}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all group"
-              >
-                <span className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center group-hover:bg-red-100 dark:group-hover:bg-red-900/30 transition-colors">
-                  <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </span>
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                  {t.defaultBackground}
-                </span>
-              </button>
-            )}
-          </div>
+                {currentHasBackground && (
+                  <button
+                    onClick={handleRemoveBackground}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all group"
+                  >
+                    <span className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center group-hover:bg-red-100 dark:group-hover:bg-red-900/30 transition-colors">
+                      <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </span>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                      {t.defaultBackground}
+                    </span>
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

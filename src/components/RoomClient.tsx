@@ -17,6 +17,7 @@ import {
 import { formatCurrency, getItemTotal, getParticipantTotal, getRoomTotals } from '@/lib/calculations';
 import { SettingsButton } from './SettingsModal';
 import { NosMoments } from './NosMoments';
+import { AnimatedBackground } from './AnimatedBackground';
 import { generateReceiptPDF } from '@/lib/pdfGenerator';
 
 interface RoomClientProps {
@@ -297,10 +298,28 @@ export function RoomClient({
 
   const debts = calculateDebts();
 
+  // Refresh room data (for background updates)
+  const refreshRoom = async () => {
+    try {
+      const res = await fetch(`/api/room/${room.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRoom(data.room);
+        setParticipants(data.participants);
+        setItems(data.items);
+        setPayments(data.payments);
+        setPhotos(data.photos || []);
+      }
+    } catch (err) {
+      console.error('Failed to refresh room data:', err);
+    }
+  };
+
   // If not joined, show join form
   if (!currentParticipant) {
     return (
       <main className="min-h-screen p-4 relative">
+        <AnimatedBackground backgroundImage={room.background_image} />
         <SettingsButton />
         <div className="max-w-md mx-auto pt-20">
           <div className="text-center mb-8 animate-fade-in-up">
@@ -353,7 +372,13 @@ export function RoomClient({
   // Main room view
   return (
     <main className="min-h-screen pb-24 relative">
-      <SettingsButton />
+      <AnimatedBackground backgroundImage={room.background_image} />
+      <SettingsButton
+        roomId={room.id}
+        isCreator={isCreator}
+        hasBackground={!!room.background_image}
+        onBackgroundChange={refreshRoom}
+      />
 
       {/* Share Modal */}
       {showShareModal && (
