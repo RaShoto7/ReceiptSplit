@@ -364,7 +364,41 @@ export function generateReceiptPDF(options: PDFGeneratorOptions): void {
   y += 5;
   drawCenteredText(t.slogan, y, 9, GOLD);
 
-  // Save
+  // Generate filename
   const filename = `${room.title || 'receipt'}-${room.id}.pdf`;
-  doc.save(filename);
+
+  // Mobile-compatible download approach
+  const pdfBlob = doc.output('blob');
+  const blobUrl = URL.createObjectURL(pdfBlob);
+
+  // Check if on mobile (iOS Safari or other mobile browsers)
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isIOSSafari = /iPhone|iPad|iPod/i.test(navigator.userAgent) && /Safari/i.test(navigator.userAgent);
+
+  if (isIOSSafari) {
+    // iOS Safari: open in new tab (allows user to share/save)
+    window.open(blobUrl, '_blank');
+  } else if (isMobile) {
+    // Other mobile browsers: try download, fallback to new tab
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Fallback: also open in new tab in case download doesn't work
+    setTimeout(() => {
+      window.open(blobUrl, '_blank');
+    }, 500);
+  } else {
+    // Desktop: standard download
+    doc.save(filename);
+  }
+
+  // Clean up blob URL after a delay
+  setTimeout(() => {
+    URL.revokeObjectURL(blobUrl);
+  }, 10000);
 }

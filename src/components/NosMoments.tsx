@@ -65,6 +65,7 @@ export function NosMoments({ roomId, photos, participants, currentParticipantId 
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [caption, setCaption] = useState('');
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-expand when photos change
@@ -107,6 +108,9 @@ export function NosMoments({ roomId, photos, participants, currentParticipantId 
       alert('Failed to upload photo. Please try again.');
     } finally {
       setIsUploading(false);
+      if (cameraInputRef.current) {
+        cameraInputRef.current.value = '';
+      }
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -168,26 +172,40 @@ export function NosMoments({ roomId, photos, participants, currentParticipantId 
             {/* Upload Section */}
             {currentParticipantId && (
               <div className="space-y-2">
+                {/* Hidden inputs */}
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="camera-upload"
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="file-upload"
+                />
+
+                {/* Caption input */}
+                <input
+                  type="text"
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  placeholder={t.addCaption}
+                  className="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-800 border-0 rounded-xl focus:ring-2 focus:ring-pink-500"
+                />
+
+                {/* Buttons row */}
                 <div className="flex gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    id="photo-upload"
-                  />
-                  <input
-                    type="text"
-                    value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
-                    placeholder={t.addCaption}
-                    className="flex-1 px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-800 border-0 rounded-xl focus:ring-2 focus:ring-pink-500"
-                  />
+                  {/* Camera button */}
                   <label
-                    htmlFor="photo-upload"
-                    className={`px-4 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 cursor-pointer transition-all ${
+                    htmlFor="camera-upload"
+                    className={`flex-1 px-4 py-2.5 rounded-xl font-medium text-sm flex items-center justify-center gap-2 cursor-pointer transition-all ${
                       isUploading
                         ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 active:scale-95'
@@ -204,7 +222,22 @@ export function NosMoments({ roomId, photos, participants, currentParticipantId 
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                     )}
-                    {t.addPhoto}
+                    {t.camera}
+                  </label>
+
+                  {/* Gallery/File button */}
+                  <label
+                    htmlFor="file-upload"
+                    className={`flex-1 px-4 py-2.5 rounded-xl font-medium text-sm flex items-center justify-center gap-2 cursor-pointer transition-all ${
+                      isUploading
+                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 border border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    {t.gallery}
                   </label>
                 </div>
               </div>

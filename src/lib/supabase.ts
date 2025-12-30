@@ -77,6 +77,16 @@ export function subscribeToRoom(
       },
       () => onUpdate()
     )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'photos',
+        filter: `room_id=eq.${roomId}`,
+      },
+      () => onUpdate()
+    )
     .subscribe();
 
   return channel;

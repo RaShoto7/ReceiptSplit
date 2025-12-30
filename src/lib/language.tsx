@@ -120,6 +120,8 @@ interface Translations {
   addCaption: string;
   photoBy: string;
   deletePhoto: string;
+  camera: string;
+  gallery: string;
 
   // PDF
   downloadPdf: string;
@@ -255,6 +257,8 @@ const translations: Record<Language, Translations> = {
     addCaption: 'Ajouter une légende...',
     photoBy: 'Par',
     deletePhoto: 'Supprimer',
+    camera: 'Photo',
+    gallery: 'Galerie',
 
     // PDF
     downloadPdf: 'Télécharger PDF',
@@ -388,6 +392,8 @@ const translations: Record<Language, Translations> = {
     addCaption: 'Add a caption...',
     photoBy: 'By',
     deletePhoto: 'Delete',
+    camera: 'Camera',
+    gallery: 'Gallery',
 
     // PDF
     downloadPdf: 'Download PDF',
