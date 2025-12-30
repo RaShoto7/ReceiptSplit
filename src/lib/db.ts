@@ -1,5 +1,5 @@
 import { Pool, PoolConfig } from 'pg';
-import { Room, Participant, Item, Payment, Currency, RoomStatus } from '@/types';
+import { Room, Participant, Item, Payment, Photo, Currency, RoomStatus } from '@/types';
 
 // Create a connection pool
 let pool: Pool | null = null;
@@ -130,6 +130,18 @@ export async function initializeDatabase() {
         item_id VARCHAR(36) NOT NULL REFERENCES items(id) ON DELETE CASCADE,
         paid_by_participant_id VARCHAR(36) NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
         amount DECIMAL(10,2) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Photos table for "Nos Moments"
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS photos (
+        id VARCHAR(36) PRIMARY KEY,
+        room_id VARCHAR(10) NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        uploaded_by_participant_id VARCHAR(36) NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+        image_data TEXT NOT NULL,
+        caption VARCHAR(500),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -287,16 +299,48 @@ export async function removePayment(id: string): Promise<void> {
   await db.query('DELETE FROM payments WHERE id = $1', [id]);
 }
 
+// Photo operations
+export async function getPhotos(roomId: string): Promise<Photo[]> {
+  const db = getPool();
+  const result = await db.query(
+    'SELECT * FROM photos WHERE room_id = $1 ORDER BY created_at DESC',
+    [roomId]
+  );
+  return result.rows as Photo[];
+}
+
+export async function addPhoto(
+  id: string,
+  roomId: string,
+  uploadedByParticipantId: string,
+  imageData: string,
+  caption: string | null
+): Promise<Photo> {
+  const db = getPool();
+  const result = await db.query(
+    `INSERT INTO photos (id, room_id, uploaded_by_participant_id, image_data, caption)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [id, roomId, uploadedByParticipantId, imageData, caption]
+  );
+  return result.rows[0] as Photo;
+}
+
+export async function removePhoto(id: string): Promise<void> {
+  const db = getPool();
+  await db.query('DELETE FROM photos WHERE id = $1', [id]);
+}
+
 // Get full room data
 export async function getFullRoomData(roomId: string) {
   const room = await getRoom(roomId);
   if (!room) return null;
 
-  const [participants, items, payments] = await Promise.all([
+  const [participants, items, payments, photos] = await Promise.all([
     getParticipants(roomId),
     getItems(roomId),
     getPayments(roomId),
+    getPhotos(roomId),
   ]);
 
-  return { room, participants, items, payments };
+  return { room, participants, items, payments, photos };
 }

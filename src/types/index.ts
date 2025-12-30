@@ -41,6 +41,15 @@ export interface Payment {
   created_at: string;
 }
 
+export interface Photo {
+  id: string;
+  room_id: string;
+  uploaded_by_participant_id: string;
+  image_data: string; // Base64 encoded image
+  caption: string | null;
+  created_at: string;
+}
+
 // Computed types for display
 export interface ParticipantWithItems extends Participant {
   items: Item[];

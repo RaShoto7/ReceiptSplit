@@ -11,6 +11,8 @@ import {
   removeItem as dbRemoveItem,
   addPayment as dbAddPayment,
   removePayment as dbRemovePayment,
+  addPhoto as dbAddPhoto,
+  removePhoto as dbRemovePhoto,
   updateRoomStatus as dbUpdateRoomStatus,
   updateRoomTipTax as dbUpdateRoomTipTax,
   getParticipantBySession,
@@ -171,6 +173,43 @@ export async function updateTipTaxAction(formData: FormData): Promise<void> {
   const taxPercent = parseFloat(formData.get('taxPercent') as string) || 0;
 
   await dbUpdateRoomTipTax(roomId, tipPercent, taxPercent);
+
+  revalidatePath(`/r/${roomId}`);
+}
+
+// Add a photo to "Nos Moments"
+export async function addPhotoAction(formData: FormData) {
+  const roomId = formData.get('roomId') as string;
+  const participantId = formData.get('participantId') as string;
+  const imageData = formData.get('imageData') as string;
+  const caption = formData.get('caption') as string | null;
+
+  if (!imageData) {
+    return { error: 'Image data is required' };
+  }
+
+  if (!participantId) {
+    return { error: 'Participant ID is required' };
+  }
+
+  // Check size (limit to ~1MB base64)
+  if (imageData.length > 1.5 * 1024 * 1024) {
+    return { error: 'Image too large. Please choose a smaller image.' };
+  }
+
+  const photoId = nanoid();
+  await dbAddPhoto(photoId, roomId, participantId, imageData, caption || null);
+
+  revalidatePath(`/r/${roomId}`);
+  return { success: true, photoId };
+}
+
+// Remove a photo
+export async function removePhotoAction(formData: FormData): Promise<void> {
+  const photoId = formData.get('photoId') as string;
+  const roomId = formData.get('roomId') as string;
+
+  await dbRemovePhoto(photoId);
 
   revalidatePath(`/r/${roomId}`);
 }

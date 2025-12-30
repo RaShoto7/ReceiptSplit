@@ -50,7 +50,7 @@ export default function LoginPage() {
         <div className="text-center mb-8 animate-fade-in-up">
           <div className="w-24 h-24 mx-auto mb-4 logo-glow animate-bounce-in">
             <Image
-              src="/logo.png"
+              src="/logo.svg"
               alt="ReceiptSplit"
               width={96}
               height={96}

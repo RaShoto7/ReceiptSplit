@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c9a227"/>
+      <stop offset="50%" style="stop-color:#d4af37"/>
+      <stop offset="100%" style="stop-color:#f0d78c"/>
+    </linearGradient>
+    <linearGradient id="navyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a2744"/>
+      <stop offset="100%" style="stop-color:#2d3a52"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#c9a227" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="60" cy="60" r="56" fill="url(#navyGradient)" filter="url(#shadow)"/>
+
+  <!-- Inner ring -->
+  <circle cx="60" cy="60" r="50" fill="none" stroke="url(#goldGradient)" stroke-width="2" opacity="0.5"/>
+
+  <!-- Receipt paper -->
+  <path d="M40 25 L80 25 L80 85 L75 80 L70 85 L65 80 L60 85 L55 80 L50 85 L45 80 L40 85 Z"
+        fill="white" opacity="0.95"/>
+
+  <!-- Receipt lines -->
+  <rect x="46" y="35" width="28" height="3" rx="1.5" fill="url(#goldGradient)"/>
+  <rect x="46" y="44" width="22" height="2" rx="1" fill="#1a2744" opacity="0.3"/>
+  <rect x="46" y="51" width="26" height="2" rx="1" fill="#1a2744" opacity="0.3"/>
+  <rect x="46" y="58" width="18" height="2" rx="1" fill="#1a2744" opacity="0.3"/>
+
+  <!-- Divider line -->
+  <line x1="46" y1="66" x2="74" y2="66" stroke="url(#goldGradient)" stroke-width="1.5" stroke-dasharray="3,2"/>
+
+  <!-- Total -->
+  <rect x="46" y="72" width="28" height="3" rx="1.5" fill="url(#goldGradient)"/>
+
+  <!-- Split indicator - two arrows -->
+  <g transform="translate(60, 95)">
+    <path d="M-12 0 L-6 -5 L-6 -2 L0 -2 L0 2 L-6 2 L-6 5 Z" fill="url(#goldGradient)"/>
+    <path d="M12 0 L6 -5 L6 -2 L0 -2 L0 2 L6 2 L6 5 Z" fill="url(#goldGradient)"/>
+  </g>
+</svg>

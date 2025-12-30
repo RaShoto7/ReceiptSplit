@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Room, Participant, Item, Payment, Currency } from '@/types';
+import { Room, Participant, Item, Payment, Photo, Currency } from '@/types';
 import { useLanguage } from '@/lib/language';
 import { getSession, setRoomSession } from '@/lib/session';
 import { subscribeToRoom, unsubscribeFromRoom } from '@/lib/supabase';
@@ -16,12 +16,15 @@ import {
 } from '@/lib/actions';
 import { formatCurrency, getItemTotal, getParticipantTotal, getRoomTotals } from '@/lib/calculations';
 import { SettingsButton } from './SettingsModal';
+import { NosMoments } from './NosMoments';
+import { generateReceiptPDF } from '@/lib/pdfGenerator';
 
 interface RoomClientProps {
   initialRoom: Room;
   initialParticipants: Participant[];
   initialItems: Item[];
   initialPayments: Payment[];
+  initialPhotos: Photo[];
 }
 
 export function RoomClient({
@@ -29,12 +32,14 @@ export function RoomClient({
   initialParticipants,
   initialItems,
   initialPayments,
+  initialPhotos,
 }: RoomClientProps) {
   const { t } = useLanguage();
   const [room, setRoom] = useState(initialRoom);
   const [participants, setParticipants] = useState(initialParticipants);
   const [items, setItems] = useState(initialItems);
   const [payments, setPayments] = useState(initialPayments);
+  const [photos, setPhotos] = useState(initialPhotos);
 
   const [currentParticipant, setCurrentParticipant] = useState<Participant | null>(null);
   const [isJoining, setIsJoining] = useState(false);
@@ -86,6 +91,7 @@ export function RoomClient({
           setParticipants(data.participants);
           setItems(data.items);
           setPayments(data.payments);
+          setPhotos(data.photos || []);
         }
       } catch (err) {
         console.error('Failed to refresh room data:', err);
@@ -300,7 +306,7 @@ export function RoomClient({
           <div className="text-center mb-8 animate-fade-in-up">
             <div className="w-20 h-20 mx-auto mb-4 logo-glow animate-bounce-in">
               <img
-                src="/logo.png"
+                src="/logo.svg"
                 alt="ReceiptSplit"
                 className="w-20 h-20 object-contain"
               />
@@ -665,6 +671,14 @@ export function RoomClient({
               </section>
             )}
 
+            {/* Nos Moments */}
+            <NosMoments
+              roomId={room.id}
+              photos={photos}
+              participants={participants}
+              currentParticipantId={currentParticipant?.id || null}
+            />
+
             {/* Finalize button - Creator only */}
             {isCreator && items.length > 0 && (
               <button
@@ -889,7 +903,32 @@ export function RoomClient({
                   </span>
                 </div>
               </div>
+
+              {/* Download PDF button */}
+              <button
+                onClick={() => generateReceiptPDF({
+                  room,
+                  participants,
+                  items,
+                  payments,
+                  language: (localStorage.getItem('receiptsplit-language') as 'fr' | 'en') || 'fr',
+                })}
+                className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                {t.downloadPdf}
+              </button>
             </section>
+
+            {/* Nos Moments */}
+            <NosMoments
+              roomId={room.id}
+              photos={photos}
+              participants={participants}
+              currentParticipantId={currentParticipant?.id || null}
+            />
           </>
         )}
       </div>

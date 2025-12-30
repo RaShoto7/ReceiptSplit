@@ -21,7 +21,7 @@ export default async function RoomPage({ params }: PageProps) {
     notFound();
   }
 
-  const { room, participants, items, payments } = data;
+  const { room, participants, items, payments, photos } = data;
 
   return (
     <RoomClient
@@ -29,6 +29,7 @@ export default async function RoomPage({ params }: PageProps) {
       initialParticipants={participants}
       initialItems={items}
       initialPayments={payments}
+      initialPhotos={photos}
     />
   );
 }

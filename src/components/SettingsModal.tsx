@@ -2,11 +2,24 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/lib/language';
+import { updateCustomBackground } from './AnimatedBackground';
 
 export function SettingsButton() {
   const [isOpen, setIsOpen] = useState(false);
   const { language, setLanguage, t } = useLanguage();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [hasCustomBg, setHasCustomBg] = useState(false);
+
+  // Check if custom background exists
+  useEffect(() => {
+    const checkBg = () => {
+      setHasCustomBg(!!localStorage.getItem('receiptsplit-custom-bg'));
+    };
+    checkBg();
+    window.addEventListener('customBgChange', checkBg);
+    return () => window.removeEventListener('customBgChange', checkBg);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -24,6 +37,33 @@ export function SettingsButton() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 2MB to be safe with localStorage)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image too large. Please choose an image under 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      updateCustomBackground(result);
+      setHasCustomBg(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveBackground = () => {
+    updateCustomBackground(null);
+    setHasCustomBg(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   return (
     <div className="fixed top-4 right-4 z-40" ref={dropdownRef}>
@@ -43,29 +83,27 @@ export function SettingsButton() {
 
       {/* Dropdown Panel */}
       <div
-        className={`absolute right-0 mt-2 w-56 origin-top-right transition-all duration-300 ease-out ${
+        className={`absolute right-0 mt-2 w-64 origin-top-right transition-all duration-300 ease-out ${
           isOpen
             ? 'opacity-100 scale-100 translate-y-0'
             : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
         }`}
       >
         <div className="premium-card rounded-2xl shadow-xl overflow-hidden">
-          {/* Header */}
+          {/* Language Section */}
           <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               {t.language}
             </p>
           </div>
 
-          {/* Language Options */}
-          <div className="p-2">
+          <div className="p-2 border-b border-gray-100 dark:border-gray-800">
             <LanguageOption
               label={t.french}
               flag="🇫🇷"
               selected={language === 'fr'}
               onClick={() => {
                 setLanguage('fr');
-                setIsOpen(false);
               }}
             />
             <LanguageOption
@@ -74,9 +112,56 @@ export function SettingsButton() {
               selected={language === 'en'}
               onClick={() => {
                 setLanguage('en');
-                setIsOpen(false);
               }}
             />
+          </div>
+
+          {/* Background Section */}
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              {t.background}
+            </p>
+          </div>
+
+          <div className="p-3 space-y-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+              id="bg-upload"
+            />
+
+            <label
+              htmlFor="bg-upload"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all"
+            >
+              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/50 dark:to-amber-800/50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                {t.uploadPhoto}
+              </span>
+            </label>
+
+            {hasCustomBg && (
+              <button
+                onClick={handleRemoveBackground}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all group"
+              >
+                <span className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center group-hover:bg-red-100 dark:group-hover:bg-red-900/30 transition-colors">
+                  <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                  {t.defaultBackground}
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </div>

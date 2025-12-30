@@ -39,7 +39,7 @@ export function HomeContent() {
       <div className="text-center mb-10 animate-fade-in-up">
         <div className="inline-flex items-center justify-center w-28 h-28 mb-6 animate-bounce-in logo-glow">
           <Image
-            src="/logo.png"
+            src="/logo.svg"
             alt="ReceiptSplit"
             width={112}
             height={112}
