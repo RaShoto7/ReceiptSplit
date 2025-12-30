@@ -40,6 +40,7 @@ export function RoomClient({
   const [isJoining, setIsJoining] = useState(false);
   const [joinName, setJoinName] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Add item form
   const [itemName, setItemName] = useState('');
@@ -62,6 +63,15 @@ export function RoomClient({
     if (existing) {
       setCurrentParticipant(existing);
       setRoomSession(room.id, existing.id, existing.name);
+
+      // Auto-show share modal for creator on first visit
+      if (existing.is_creator) {
+        const sharedKey = `receiptsplit-shared-${room.id}`;
+        if (!localStorage.getItem(sharedKey)) {
+          localStorage.setItem(sharedKey, 'true');
+          setShowShareModal(true);
+        }
+      }
     }
   }, [participants, room.id]);
 
@@ -192,10 +202,36 @@ export function RoomClient({
     window.location.reload();
   };
 
-  // Copy link
+  // Share link using native share or copy
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const shareData = {
+      title: room.title || t.untitledBill,
+      text: `${t.joinBill}: ${room.title || t.untitledBill}`,
+      url: shareUrl,
+    };
+
+    // Try native share first
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch {
+        // User cancelled or error, fall through to copy
+      }
+    }
+
+    // Fallback to copy
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Copy link only
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(window.location.href);
     setCopied(true);
+    setShowShareModal(false);
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -258,24 +294,26 @@ export function RoomClient({
   // If not joined, show join form
   if (!currentParticipant) {
     return (
-      <main className="min-h-screen bg-[#f2f2f7] dark:bg-black p-4">
+      <main className="min-h-screen p-4 relative">
         <SettingsButton />
         <div className="max-w-md mx-auto pt-20">
           <div className="text-center mb-8 animate-fade-in-up">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
+            <div className="w-20 h-20 mx-auto mb-4 logo-glow animate-bounce-in">
+              <img
+                src="/logo.png"
+                alt="ReceiptSplit"
+                className="w-20 h-20 object-contain"
+              />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
               {room.title || t.untitledBill}
             </h1>
-            <p className="text-gray-500 dark:text-gray-400">
+            <p className="text-gray-600 dark:text-gray-400">
               {participants.length} {t.participants}
             </p>
           </div>
 
-          <div className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up stagger-1">
+          <div className="premium-card rounded-3xl shadow-lg p-6 animate-fade-in-up stagger-1">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               {t.joinBill}
             </h2>
@@ -290,12 +328,12 @@ export function RoomClient({
                 onChange={(e) => setJoinName(e.target.value)}
                 placeholder={t.joinPlaceholder}
                 required
-                className="w-full px-4 py-3 bg-[#f2f2f7] dark:bg-[#2c2c2e] border-0 rounded-2xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 bg-[#f2f2f7] dark:bg-[#2c2c2e] border-0 rounded-2xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500"
               />
               <button
                 type="submit"
                 disabled={isJoining}
-                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-semibold py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all"
+                className="w-full btn-premium disabled:opacity-50 py-4 px-6 rounded-2xl text-lg font-semibold flex items-center justify-center gap-2"
               >
                 {isJoining ? t.joining : t.join}
               </button>
@@ -308,24 +346,73 @@ export function RoomClient({
 
   // Main room view
   return (
-    <main className="min-h-screen bg-[#f2f2f7] dark:bg-black pb-24">
+    <main className="min-h-screen pb-24 relative">
       <SettingsButton />
 
-      {/* Header */}
-      <header className="bg-white dark:bg-[#1c1c1e] pt-12 pb-6 px-4 rounded-b-3xl shadow-sm">
-        <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {room.title || t.untitledBill}
-              </h1>
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowShareModal(false)} />
+          <div className="relative premium-card rounded-3xl shadow-2xl p-6 max-w-sm w-full animate-scale-in">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                {t.share} {room.title || t.untitledBill}
+              </h2>
               <p className="text-gray-500 dark:text-gray-400 text-sm">
-                {participants.length} {t.participants}
+                {t.shareDescription || 'Partagez ce lien avec vos amis pour qu\'ils rejoignent l\'addition'}
               </p>
             </div>
+
+            <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-3 mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300 break-all font-mono">
+                {typeof window !== 'undefined' ? window.location.href : ''}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCopyLink}
+                className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white py-3 rounded-xl font-medium transition-all"
+              >
+                {copied ? t.copied : t.copyLink || 'Copier'}
+              </button>
+              <button
+                onClick={() => {
+                  handleShare();
+                  setShowShareModal(false);
+                }}
+                className="flex-1 btn-premium py-3 rounded-xl font-medium"
+              >
+                {t.share}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <header className="premium-card pt-12 pb-6 px-4 rounded-b-3xl shadow-lg border-b border-amber-200/30 dark:border-amber-700/20">
+        <div className="max-w-lg mx-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="" className="w-10 h-10 object-contain" />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {room.title || t.untitledBill}
+                </h1>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  {participants.length} {t.participants}
+                </p>
+              </div>
+            </div>
             <button
-              onClick={handleCopyLink}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl font-medium transition-all active:scale-95"
+              onClick={handleShare}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-amber-200 dark:from-amber-900/40 dark:to-amber-800/30 text-amber-700 dark:text-amber-400 rounded-xl font-medium transition-all active:scale-95 border border-amber-300/50 dark:border-amber-700/50"
             >
               {copied ? (
                 <>
@@ -351,7 +438,7 @@ export function RoomClient({
               room.status === 'active'
                 ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
                 : room.status === 'paying'
-                ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+                ? 'bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 text-amber-700 dark:text-amber-400'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
             }`}>
               {room.status === 'active' ? t.statusActive : room.status === 'paying' ? t.statusPaying : t.statusClosed}
@@ -368,7 +455,7 @@ export function RoomClient({
         {room.status === 'active' && (
           <>
             {/* My Items */}
-            <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up">
+            <section className="premium-card rounded-3xl shadow-lg p-6 animate-fade-in-up">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 {t.myItems}
               </h2>
@@ -474,7 +561,7 @@ export function RoomClient({
             </section>
 
             {/* All items from everyone */}
-            <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up stagger-1">
+            <section className="premium-card rounded-3xl shadow-lg p-6 animate-fade-in-up stagger-1">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 {t.allItems}
               </h2>
@@ -540,7 +627,7 @@ export function RoomClient({
 
             {/* Tip & Tax - Creator only */}
             {isCreator && (
-              <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up stagger-2">
+              <section className="premium-card rounded-3xl shadow-lg p-6 animate-fade-in-up stagger-2">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                   {t.tipAndTax}
                 </h2>
@@ -582,7 +669,7 @@ export function RoomClient({
             {isCreator && items.length > 0 && (
               <button
                 onClick={handleFinalize}
-                className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                className="w-full btn-premium py-4 px-6 rounded-2xl text-lg font-semibold flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -597,7 +684,7 @@ export function RoomClient({
         {room.status === 'paying' && (
           <>
             {/* Remaining to pay banner */}
-            <section className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-3xl shadow-sm p-6 text-white animate-fade-in-up">
+            <section className="bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 rounded-3xl shadow-lg p-6 text-white animate-fade-in-up">
               <div className="text-center">
                 <p className="text-orange-100 text-sm mb-1">{t.remainingToPay}</p>
                 <p className="text-4xl font-bold">
@@ -610,7 +697,7 @@ export function RoomClient({
             </section>
 
             {/* All items grouped by person */}
-            <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up stagger-1">
+            <section className="premium-card rounded-3xl shadow-lg p-6 animate-fade-in-up stagger-1">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 {t.paymentMode}
               </h2>
@@ -704,7 +791,7 @@ export function RoomClient({
 
             {/* Who owes what to whom */}
             {debts.length > 0 && (
-              <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up stagger-2">
+              <section className="premium-card rounded-3xl shadow-lg p-6 animate-fade-in-up stagger-2">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                   {t.whoOwesWhat}
                 </h2>
@@ -765,7 +852,7 @@ export function RoomClient({
             )}
 
             {/* Summary */}
-            <section className="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-sm p-6 animate-fade-in-up stagger-3">
+            <section className="premium-card rounded-3xl shadow-lg p-6 animate-fade-in-up stagger-3">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 {t.summary}
               </h2>

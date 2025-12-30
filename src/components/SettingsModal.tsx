@@ -1,17 +1,38 @@
 'use client';
 
-import { useState } from 'react';
-import { useLanguage, Language } from '@/lib/language';
+import { useState, useRef, useEffect } from 'react';
+import { useLanguage } from '@/lib/language';
 
 export function SettingsButton() {
   const [isOpen, setIsOpen] = useState(false);
   const { language, setLanguage, t } = useLanguage();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   return (
-    <>
+    <div className="fixed top-4 right-4 z-40" ref={dropdownRef}>
+      {/* Settings Button */}
       <button
-        onClick={() => setIsOpen(true)}
-        className="fixed top-4 right-4 z-40 w-11 h-11 rounded-full bg-white dark:bg-[#1c1c1e] shadow-lg flex items-center justify-center animate-fade-in"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-11 h-11 rounded-full premium-card shadow-lg flex items-center justify-center animate-fade-in transition-all duration-300 ${
+          isOpen ? 'rotate-90 ring-2 ring-amber-400' : ''
+        }`}
         aria-label={t.settings}
       >
         <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -20,56 +41,46 @@ export function SettingsButton() {
         </svg>
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/40 animate-fade-in"
-            onClick={() => setIsOpen(false)}
-          />
+      {/* Dropdown Panel */}
+      <div
+        className={`absolute right-0 mt-2 w-56 origin-top-right transition-all duration-300 ease-out ${
+          isOpen
+            ? 'opacity-100 scale-100 translate-y-0'
+            : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="premium-card rounded-2xl shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              {t.language}
+            </p>
+          </div>
 
-          {/* Modal */}
-          <div className="relative w-full max-w-md mx-4 mb-4 sm:mb-0 bg-white dark:bg-[#1c1c1e] rounded-3xl overflow-hidden animate-slide-in shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-800">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {t.settings}
-              </h2>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center"
-              >
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-6">
-              <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">
-                {t.language}
-              </label>
-
-              <div className="space-y-2">
-                <LanguageOption
-                  label={t.french}
-                  flag="🇫🇷"
-                  selected={language === 'fr'}
-                  onClick={() => setLanguage('fr')}
-                />
-                <LanguageOption
-                  label={t.english}
-                  flag="🇬🇧"
-                  selected={language === 'en'}
-                  onClick={() => setLanguage('en')}
-                />
-              </div>
-            </div>
+          {/* Language Options */}
+          <div className="p-2">
+            <LanguageOption
+              label={t.french}
+              flag="🇫🇷"
+              selected={language === 'fr'}
+              onClick={() => {
+                setLanguage('fr');
+                setIsOpen(false);
+              }}
+            />
+            <LanguageOption
+              label={t.english}
+              flag="🇬🇧"
+              selected={language === 'en'}
+              onClick={() => {
+                setLanguage('en');
+                setIsOpen(false);
+              }}
+            />
           </div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -87,20 +98,20 @@ function LanguageOption({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
         selected
-          ? 'bg-blue-50 dark:bg-blue-900/30 ring-2 ring-blue-500'
-          : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
+          ? 'bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/20'
+          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
       }`}
     >
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">{flag}</span>
-        <span className={`text-base font-medium ${selected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}>
-          {label}
-        </span>
-      </div>
+      <span className="text-xl">{flag}</span>
+      <span className={`text-sm font-medium flex-1 text-left ${
+        selected ? 'text-amber-700 dark:text-amber-400' : 'text-gray-700 dark:text-gray-200'
+      }`}>
+        {label}
+      </span>
       {selected && (
-        <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
         </svg>
       )}

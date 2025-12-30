@@ -27,6 +27,8 @@ interface Translations {
   // Room - Header
   untitledBill: string;
   share: string;
+  shareDescription: string;
+  copyLink: string;
   copied: string;
   linkCopied: string;
   status: string;
@@ -141,6 +143,8 @@ const translations: Record<Language, Translations> = {
     // Room - Header
     untitledBill: 'Addition sans titre',
     share: 'Partager',
+    shareDescription: 'Partagez ce lien avec vos amis pour qu\'ils rejoignent l\'addition',
+    copyLink: 'Copier',
     copied: 'Copié !',
     linkCopied: 'Lien copié !',
     status: 'Statut',
@@ -253,6 +257,8 @@ const translations: Record<Language, Translations> = {
     // Room - Header
     untitledBill: 'Untitled Bill',
     share: 'Share',
+    shareDescription: 'Share this link with your friends to join the bill',
+    copyLink: 'Copy',
     copied: 'Copied!',
     linkCopied: 'Link copied!',
     status: 'Status',
