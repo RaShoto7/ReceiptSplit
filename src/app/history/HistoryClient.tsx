@@ -5,18 +5,25 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { useLanguage } from '@/lib/language';
 import { AnimatedBackground } from '@/components/AnimatedBackground';
-import { Room } from '@/types';
+import { Room, Item, Payment } from '@/types';
 import { formatCurrency } from '@/lib/calculations';
+import { SpendingStats } from '@/components/SpendingStats';
+import { Badges } from '@/components/Badges';
 
 interface HistoryClientProps {
   rooms: Room[];
+  items: Item[];
+  payments: Payment[];
   userName: string;
 }
 
-export function HistoryClient({ rooms, userName }: HistoryClientProps) {
+type ViewType = 'history' | 'stats' | 'badges';
+
+export function HistoryClient({ rooms, items, payments, userName }: HistoryClientProps) {
   const { language } = useLanguage();
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'active' | 'paying' | 'closed'>('all');
+  const [activeView, setActiveView] = useState<ViewType>('history');
 
   const filteredRooms = rooms.filter(room => {
     if (filter === 'all') return true;
@@ -101,25 +108,65 @@ export function HistoryClient({ rooms, userName }: HistoryClientProps) {
 
       {/* Content */}
       <div className="max-w-lg mx-auto px-4 py-6 relative z-10">
-        {/* Filters */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {(['all', 'active', 'paying', 'closed'] as const).map(status => (
+        {/* View Tabs */}
+        <div className="flex gap-2 mb-4 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+          {(['history', 'stats', 'badges'] as const).map(view => (
             <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${
-                filter === status
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
+              key={view}
+              onClick={() => setActiveView(view)}
+              className={`flex-1 px-4 py-3 rounded-xl font-medium text-sm transition-all ${
+                activeView === view
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
-              {status === 'all' && (language === 'fr' ? 'Toutes' : 'All')}
-              {status === 'active' && (language === 'fr' ? 'En cours' : 'Active')}
-              {status === 'paying' && (language === 'fr' ? 'Paiement' : 'Paying')}
-              {status === 'closed' && (language === 'fr' ? 'Terminées' : 'Closed')}
+              {view === 'history' && (language === 'fr' ? '📋 Historique' : '📋 History')}
+              {view === 'stats' && (language === 'fr' ? '📊 Stats' : '📊 Stats')}
+              {view === 'badges' && (language === 'fr' ? '🏆 Badges' : '🏆 Badges')}
             </button>
           ))}
         </div>
+
+        {/* Stats View */}
+        {activeView === 'stats' && (
+          <SpendingStats
+            rooms={rooms}
+            items={items}
+            currency={(rooms[0]?.currency || 'EUR') as 'EUR' | 'USD' | 'GBP'}
+          />
+        )}
+
+        {/* Badges View */}
+        {activeView === 'badges' && (
+          <Badges
+            rooms={rooms}
+            items={items}
+            payments={payments}
+          />
+        )}
+
+        {/* History View */}
+        {activeView === 'history' && (
+          <>
+            {/* Filters */}
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+              {(['all', 'active', 'paying', 'closed'] as const).map(status => (
+                <button
+                  key={status}
+                  onClick={() => setFilter(status)}
+                  className={`px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${
+                    filter === status
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {status === 'all' && (language === 'fr' ? 'Toutes' : 'All')}
+                  {status === 'active' && (language === 'fr' ? 'En cours' : 'Active')}
+                  {status === 'paying' && (language === 'fr' ? 'Paiement' : 'Paying')}
+                  {status === 'closed' && (language === 'fr' ? 'Terminées' : 'Closed')}
+                </button>
+              ))}
+            </div>
 
         {/* Room List */}
         {filteredRooms.length === 0 ? (
@@ -175,6 +222,8 @@ export function HistoryClient({ rooms, userName }: HistoryClientProps) {
               </button>
             ))}
           </div>
+        )}
+          </>
         )}
       </div>
     </main>

@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { getUserRooms } from '@/lib/db';
+import { getUserRooms, getUserItems, getUserPayments } from '@/lib/db';
 import { HistoryClient } from './HistoryClient';
 
 export default async function HistoryPage() {
@@ -10,7 +10,18 @@ export default async function HistoryPage() {
     redirect('/login?callbackUrl=/history');
   }
 
-  const rooms = await getUserRooms(session.user.id);
+  const [rooms, items, payments] = await Promise.all([
+    getUserRooms(session.user.id),
+    getUserItems(session.user.id),
+    getUserPayments(session.user.id),
+  ]);
 
-  return <HistoryClient rooms={rooms} userName={session.user.name || 'Utilisateur'} />;
+  return (
+    <HistoryClient
+      rooms={rooms}
+      items={items}
+      payments={payments}
+      userName={session.user.name || 'Utilisateur'}
+    />
+  );
 }

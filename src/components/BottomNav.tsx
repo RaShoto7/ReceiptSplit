@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/language';
 
-export type TabId = 'items' | 'bill' | 'moments' | 'pay';
+export type TabId = 'items' | 'bill' | 'moments' | 'games' | 'pay';
 
 interface BottomNavProps {
   activeTab: TabId;
@@ -58,6 +58,15 @@ export function BottomNav({
         </svg>
       ),
       badge: photosCount > 0 ? photosCount : undefined,
+    },
+    {
+      id: 'games' as TabId,
+      label: language === 'fr' ? 'Jeux' : 'Games',
+      icon: (active: boolean) => (
+        <svg className={`w-6 h-6 transition-all ${active ? 'scale-110' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2.5 : 2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
     },
   ];
 

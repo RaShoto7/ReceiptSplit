@@ -25,6 +25,9 @@ import { SmartInput } from './SmartInput';
 import { VoiceAssistant } from './VoiceAssistant';
 import { PaymentIntegration } from './PaymentIntegration';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
+import { KidsGames } from './KidsGames';
+import { useSounds } from '@/lib/sounds';
+import { notifications } from '@/lib/notifications';
 
 interface RoomClientProps {
   initialRoom: Room;
@@ -42,6 +45,7 @@ export function RoomClient({
   initialPhotos,
 }: RoomClientProps) {
   const { t } = useLanguage();
+  const { play, vibrate } = useSounds();
   const [room, setRoom] = useState(initialRoom);
   const [participants, setParticipants] = useState(initialParticipants);
   const [items, setItems] = useState(initialItems);
@@ -98,6 +102,20 @@ export function RoomClient({
         const res = await fetch(`/api/room/${room.id}`);
         if (res.ok) {
           const data = await res.json();
+
+          // Check if new participant joined
+          const newParticipants = data.participants.filter(
+            (p: Participant) => !participants.find(existing => existing.id === p.id)
+          );
+
+          // Notify about new participants (not yourself)
+          newParticipants.forEach((p: Participant) => {
+            if (p.id !== currentParticipant?.id) {
+              play('userJoined');
+              notifications.userJoined(p.name, room.title || 'Addition');
+            }
+          });
+
           setRoom(data.room);
           setParticipants(data.participants);
           setItems(data.items);
@@ -112,7 +130,7 @@ export function RoomClient({
     return () => {
       unsubscribeFromRoom(channel);
     };
-  }, [room.id]);
+  }, [room.id, participants, currentParticipant, play]);
 
   // Switch to pay tab when room status changes
   useEffect(() => {
@@ -144,6 +162,7 @@ export function RoomClient({
       }
     } else if (result?.success && result?.participantId) {
       setRoomSession(room.id, result.participantId, joinName.trim());
+      play('userJoined');
       window.location.reload();
     }
 
@@ -165,6 +184,9 @@ export function RoomClient({
     formData.set('participantId', currentParticipant.id);
 
     await addItemAction(formData);
+
+    play('itemAdded');
+    vibrate(50);
 
     setItemName('');
     setItemPrice('');
@@ -198,6 +220,7 @@ export function RoomClient({
     formData.set('itemId', itemId);
     formData.set('roomId', room.id);
     await removeItemAction(formData);
+    play('itemRemoved');
     window.location.reload();
   };
 
@@ -232,6 +255,8 @@ export function RoomClient({
     formData.set('participantId', currentParticipant.id);
     formData.set('amount', String(amount));
     await payItemAction(formData);
+    play('paymentComplete');
+    vibrate([100, 50, 100]);
     window.location.reload();
   };
 
@@ -821,6 +846,11 @@ export function RoomClient({
                 currentParticipantId={currentParticipant?.id || null}
               />
             )}
+
+            {/* Games Tab */}
+            {activeTab === 'games' && (
+              <KidsGames />
+            )}
           </>
         )}
 
@@ -1084,6 +1114,11 @@ export function RoomClient({
                 participants={participants}
                 currentParticipantId={currentParticipant?.id || null}
               />
+            )}
+
+            {/* Games Tab in paying mode */}
+            {activeTab === 'games' && (
+              <KidsGames />
             )}
 
             {/* Items tab in paying mode */}

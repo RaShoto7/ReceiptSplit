@@ -446,3 +446,27 @@ export async function linkRoomToUser(roomId: string, userId: string): Promise<vo
   const db = getPool();
   await db.query('UPDATE rooms SET user_id = $1 WHERE id = $2', [userId, roomId]);
 }
+
+export async function getUserItems(userId: string): Promise<Item[]> {
+  const db = getPool();
+  const result = await db.query(
+    `SELECT i.* FROM items i
+     INNER JOIN rooms r ON i.room_id = r.id
+     WHERE r.user_id = $1
+     ORDER BY i.created_at DESC`,
+    [userId]
+  );
+  return result.rows as Item[];
+}
+
+export async function getUserPayments(userId: string): Promise<Payment[]> {
+  const db = getPool();
+  const result = await db.query(
+    `SELECT p.* FROM payments p
+     INNER JOIN rooms r ON p.room_id = r.id
+     WHERE r.user_id = $1
+     ORDER BY p.created_at DESC`,
+    [userId]
+  );
+  return result.rows as Payment[];
+}
