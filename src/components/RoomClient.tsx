@@ -510,7 +510,7 @@ export function RoomClient({
       )}
 
       {/* Header */}
-      <header className="glass-card pt-12 pb-4 px-4 rounded-b-3xl shadow-lg">
+      <header className="glass-card pt-12 pb-4 px-4 rounded-b-3xl shadow-lg relative z-10">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
@@ -646,6 +646,8 @@ export function RoomClient({
                       <input
                         type="number"
                         min="1"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={itemQuantity}
                         onChange={(e) => setItemQuantity(e.target.value)}
                         placeholder="1"
@@ -660,6 +662,7 @@ export function RoomClient({
                         type="number"
                         step="0.01"
                         min="0"
+                        inputMode="decimal"
                         value={itemPrice}
                         onChange={(e) => setItemPrice(e.target.value)}
                         placeholder="0.00"
