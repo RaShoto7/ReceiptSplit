@@ -12,7 +12,8 @@ import {
   updateRoomStatusAction,
   updateTipTaxAction,
   payItemAction,
-  removePaymentAction
+  removePaymentAction,
+  closeRoomAction
 } from '@/lib/actions';
 import { formatCurrency, getItemTotal, getParticipantTotal, getRoomTotals } from '@/lib/calculations';
 import { SettingsButton } from './SettingsModal';
@@ -52,6 +53,7 @@ export function RoomClient({
   const [joinName, setJoinName] = useState('');
   const [copied, setCopied] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   // Tab navigation
   const [activeTab, setActiveTab] = useState<TabId>('items');
@@ -240,6 +242,18 @@ export function RoomClient({
     formData.set('roomId', room.id);
     await removePaymentAction(formData);
     window.location.reload();
+  };
+
+  // Close room (creator only)
+  const handleCloseRoom = async () => {
+    const formData = new FormData();
+    formData.set('roomId', room.id);
+    await closeRoomAction(formData);
+  };
+
+  // Go to home
+  const handleGoHome = () => {
+    window.location.href = '/';
   };
 
   // Share link
@@ -458,11 +472,58 @@ export function RoomClient({
         </div>
       )}
 
+      {/* Close Confirmation Modal */}
+      {showCloseConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCloseConfirm(false)} />
+          <div className="relative glass-card rounded-3xl shadow-2xl p-6 max-w-sm w-full animate-scale-in">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl flex items-center justify-center">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                {t.closeRoomTitle || 'Fermer l\'addition ?'}
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm">
+                {t.closeRoomDescription || 'Cette action est irréversible. L\'addition sera supprimée et personne ne pourra plus y accéder.'}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCloseConfirm(false)}
+                className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white py-3 rounded-xl font-medium transition-all"
+              >
+                {t.cancel || 'Annuler'}
+              </button>
+              <button
+                onClick={handleCloseRoom}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-medium transition-all"
+              >
+                {t.closeRoom || 'Fermer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="glass-card pt-12 pb-4 px-4 rounded-b-3xl shadow-lg">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
+              {/* Home button */}
+              <button
+                onClick={handleGoHome}
+                className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-all"
+                title={t.home || 'Accueil'}
+              >
+                <svg className="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+              </button>
               <img src="/logo.svg" alt="ReceiptSplit" className="w-10 h-10 object-contain" />
               <div>
                 <h1 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -996,6 +1057,19 @@ export function RoomClient({
                   </svg>
                   {t.downloadPdf}
                 </button>
+
+                {/* Close room button - Creator only */}
+                {isCreator && (
+                  <button
+                    onClick={() => setShowCloseConfirm(true)}
+                    className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-medium transition-all border border-red-200 dark:border-red-800"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    {t.closeRoomButton || 'Fermer l\'addition'}
+                  </button>
+                )}
               </section>
             )}
 

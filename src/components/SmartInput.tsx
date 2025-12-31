@@ -23,11 +23,12 @@ export function SmartInput({
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Get suggestions when value changes
   useEffect(() => {
     if (value.length >= 1) {
-      const results = getSuggestions(value, 6);
+      const results = getSuggestions(value, 12); // More suggestions for horizontal scroll
       setSuggestions(results);
       setShowSuggestions(results.length > 0);
       setSelectedIndex(-1);
@@ -65,12 +66,14 @@ export function SmartInput({
     if (!showSuggestions || suggestions.length === 0) return;
 
     switch (e.key) {
+      case 'ArrowRight':
       case 'ArrowDown':
         e.preventDefault();
         setSelectedIndex(prev =>
           prev < suggestions.length - 1 ? prev + 1 : 0
         );
         break;
+      case 'ArrowLeft':
       case 'ArrowUp':
         e.preventDefault();
         setSelectedIndex(prev =>
@@ -89,6 +92,17 @@ export function SmartInput({
     }
   };
 
+  // Scroll selected item into view
+  useEffect(() => {
+    if (selectedIndex >= 0 && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const selectedElement = container.children[selectedIndex] as HTMLElement;
+      if (selectedElement) {
+        selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [selectedIndex]);
+
   return (
     <div className="relative">
       <input
@@ -106,82 +120,74 @@ export function SmartInput({
         spellCheck="false"
       />
 
-      {/* Suggestions dropdown */}
+      {/* Horizontal scrollable suggestions */}
       {showSuggestions && suggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          className="absolute z-50 left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-700 overflow-hidden animate-scale-in"
+          className="absolute z-50 left-0 right-0 mt-2 animate-scale-in"
         >
-          <div className="p-1">
+          {/* Scrollable container */}
+          <div
+            ref={scrollContainerRef}
+            className="flex gap-2 overflow-x-auto pb-2 px-1 scrollbar-hide"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
             {suggestions.map((item, index) => (
               <button
                 key={`${item.name}-${index}`}
                 type="button"
                 onClick={() => handleSelect(item)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
+                className={`flex-shrink-0 flex items-center gap-2 px-4 py-3 rounded-2xl text-left transition-all touch-manipulation ${
                   index === selectedIndex
-                    ? 'bg-blue-50 dark:bg-blue-900/30'
-                    : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
+                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 scale-105'
+                    : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-md hover:shadow-lg border border-slate-100 dark:border-slate-700'
                 }`}
+                style={{ minWidth: 'max-content' }}
               >
-                <span className="text-xl w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-slate-700 rounded-lg">
+                <span className={`text-lg w-8 h-8 flex items-center justify-center rounded-lg ${
+                  index === selectedIndex
+                    ? 'bg-white/20'
+                    : 'bg-slate-100 dark:bg-slate-700'
+                }`}>
                   {getCategoryIcon(item.category)}
                 </span>
-                <div className="flex-1 min-w-0">
-                  <p className={`font-medium truncate ${
+                <div className="flex flex-col">
+                  <span className="font-medium text-sm whitespace-nowrap">
+                    {item.name}
+                  </span>
+                  <span className={`text-[10px] capitalize ${
                     index === selectedIndex
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-gray-900 dark:text-white'
+                      ? 'text-white/70'
+                      : 'text-slate-400 dark:text-slate-500'
                   }`}>
-                    {highlightMatch(item.name, value)}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                     {item.category}
-                  </p>
+                  </span>
                 </div>
-                <svg
-                  className={`w-4 h-4 flex-shrink-0 transition-opacity ${
-                    index === selectedIndex ? 'opacity-100 text-blue-500' : 'opacity-0'
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
               </button>
             ))}
           </div>
 
-          {/* Hint */}
-          <div className="px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border-t border-gray-100 dark:border-slate-700">
-            <p className="text-xs text-gray-400 flex items-center gap-2">
-              <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-slate-700 rounded text-[10px] font-mono">↑↓</kbd>
-              <span>naviguer</span>
-              <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-slate-700 rounded text-[10px] font-mono">↵</kbd>
-              <span>sélectionner</span>
-            </p>
-          </div>
+          {/* Scroll hint gradient */}
+          <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-slate-50 dark:from-slate-900 to-transparent" />
+
+          {/* Touch hint */}
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-1 flex items-center justify-center gap-1">
+            <span>👆</span>
+            <span>Glissez pour voir plus</span>
+          </p>
         </div>
       )}
+
+      {/* Hide scrollbar styles */}
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
-  );
-}
-
-// Highlight matching text
-function highlightMatch(text: string, query: string): React.ReactNode {
-  if (!query) return text;
-
-  const index = text.toLowerCase().indexOf(query.toLowerCase());
-  if (index === -1) return text;
-
-  return (
-    <>
-      {text.slice(0, index)}
-      <span className="bg-yellow-200 dark:bg-yellow-500/30 rounded px-0.5">
-        {text.slice(index, index + query.length)}
-      </span>
-      {text.slice(index + query.length)}
-    </>
   );
 }

@@ -16,6 +16,7 @@ import {
   updateRoomStatus as dbUpdateRoomStatus,
   updateRoomTipTax as dbUpdateRoomTipTax,
   updateRoomBackground as dbUpdateRoomBackground,
+  deleteRoom as dbDeleteRoom,
   getParticipantBySession,
   initializeDatabase,
 } from './db';
@@ -229,4 +230,13 @@ export async function updateRoomBackgroundAction(formData: FormData) {
 
   revalidatePath(`/r/${roomId}`);
   return { success: true };
+}
+
+// Close/Delete room (creator only)
+export async function closeRoomAction(formData: FormData) {
+  const roomId = formData.get('roomId') as string;
+
+  await dbDeleteRoom(roomId);
+
+  redirect('/');
 }

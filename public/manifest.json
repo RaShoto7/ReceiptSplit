@@ -5,28 +5,34 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0f1a",
-  "theme_color": "#0a0f1a",
+  "theme_color": "#3b82f6",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "fr",
   "icons": [
     {
-      "src": "/logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/api/icon?size=192",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-192x192.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/api/icon?size=512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-512x512.svg",
+      "src": "/api/icon?size=192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/api/icon?size=512",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["finance", "utilities", "lifestyle"],
@@ -35,7 +41,8 @@
       "name": "Nouvelle Addition",
       "short_name": "Nouvelle",
       "description": "Créer une nouvelle addition",
-      "url": "/"
+      "url": "/",
+      "icons": [{ "src": "/api/icon?size=96", "sizes": "96x96" }]
     }
   ],
   "share_target": {

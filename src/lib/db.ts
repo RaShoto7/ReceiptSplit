@@ -187,6 +187,12 @@ export async function updateRoomStatus(roomId: string, status: RoomStatus): Prom
   await db.query('UPDATE rooms SET status = $1 WHERE id = $2', [status, roomId]);
 }
 
+export async function deleteRoom(roomId: string): Promise<void> {
+  const db = getPool();
+  // CASCADE will delete participants, items, payments, photos
+  await db.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+}
+
 export async function updateRoomTipTax(
   roomId: string,
   tipPercent: number,

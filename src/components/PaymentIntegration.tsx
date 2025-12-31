@@ -14,7 +14,7 @@ interface PaymentIntegrationProps {
   onPaymentInitiated?: () => void;
 }
 
-type PaymentMethod = 'paypal' | 'venmo' | 'revolut' | 'lydia' | 'paylib';
+type PaymentMethod = 'wero' | 'paypal' | 'venmo' | 'revolut' | 'lydia' | 'paylib';
 
 interface PaymentOption {
   id: PaymentMethod;
@@ -40,6 +40,22 @@ export function PaymentIntegration({
   const [paymentPhone, setPaymentPhone] = useState('');
 
   const paymentOptions: PaymentOption[] = [
+    {
+      id: 'wero',
+      name: 'Wero',
+      icon: '🟢',
+      color: 'from-green-500 to-emerald-600',
+      available: true,
+      getUrl: (amt, _cur, phone, note) => {
+        const encodedNote = encodeURIComponent(note || `ReceiptSplit - ${recipientName}`);
+        // Wero uses IBAN or phone for European instant payments
+        // The app will open and user can select contact
+        if (phone) {
+          return `wero://send?amount=${amt}&phone=${encodeURIComponent(phone)}&message=${encodedNote}`;
+        }
+        return `wero://send?amount=${amt}&message=${encodedNote}`;
+      },
+    },
     {
       id: 'paypal',
       name: 'PayPal',
@@ -117,7 +133,7 @@ export function PaymentIntegration({
     if (!option) return;
 
     const note = description || `${language === 'fr' ? 'Paiement via' : 'Payment via'} ReceiptSplit`;
-    const identifier = selectedMethod === 'lydia' || selectedMethod === 'paylib' ? paymentPhone : paymentEmail;
+    const identifier = selectedMethod === 'wero' || selectedMethod === 'lydia' || selectedMethod === 'paylib' ? paymentPhone : paymentEmail;
 
     const url = option.getUrl(amount, currency, identifier, note);
 
@@ -273,7 +289,7 @@ ${description ? `${language === 'fr' ? 'Note' : 'Note'}: ${description}` : ''}`;
                   </div>
 
                   {/* Input for identifier */}
-                  {(selectedMethod === 'lydia' || selectedMethod === 'paylib') ? (
+                  {(selectedMethod === 'wero' || selectedMethod === 'lydia' || selectedMethod === 'paylib') ? (
                     <div className="mb-6">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         {language === 'fr' ? 'Numéro de téléphone du destinataire' : 'Recipient phone number'}
