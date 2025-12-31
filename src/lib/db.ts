@@ -152,6 +152,24 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Users table for authentication
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(36) PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        avatar TEXT,
+        provider VARCHAR(50) NOT NULL DEFAULT 'email',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        last_login_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Add user_id column to rooms for linking to authenticated users
+    await db.query(`
+      ALTER TABLE rooms ADD COLUMN IF NOT EXISTS user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL
+    `);
+
     tablesInitialized = true;
     console.log('Database tables initialized successfully');
   } catch (error) {
@@ -366,4 +384,65 @@ export async function getFullRoomData(roomId: string) {
   ]);
 
   return { room, participants, items, payments, photos };
+}
+
+// User operations
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatar: string | null;
+  provider: string;
+  created_at: string;
+  last_login_at: string;
+}
+
+export async function createUser(data: {
+  email: string;
+  name: string;
+  avatar: string | null;
+  provider: string;
+}): Promise<User> {
+  const db = getPool();
+  const id = require('nanoid').nanoid();
+  const result = await db.query(
+    `INSERT INTO users (id, email, name, avatar, provider)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [id, data.email, data.name, data.avatar, data.provider]
+  );
+  return result.rows[0] as User;
+}
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const db = getPool();
+  const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+  return result.rows[0] as User | null;
+}
+
+export async function getUserById(id: string): Promise<User | null> {
+  const db = getPool();
+  const result = await db.query('SELECT * FROM users WHERE id = $1', [id]);
+  return result.rows[0] as User | null;
+}
+
+export async function updateUserLastLogin(userId: string): Promise<void> {
+  const db = getPool();
+  await db.query(
+    'UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1',
+    [userId]
+  );
+}
+
+export async function getUserRooms(userId: string): Promise<Room[]> {
+  const db = getPool();
+  const result = await db.query(
+    `SELECT * FROM rooms WHERE user_id = $1 ORDER BY created_at DESC`,
+    [userId]
+  );
+  return result.rows as Room[];
+}
+
+export async function linkRoomToUser(roomId: string, userId: string): Promise<void> {
+  const db = getPool();
+  await db.query('UPDATE rooms SET user_id = $1 WHERE id = $2', [userId, roomId]);
 }

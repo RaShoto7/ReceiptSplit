@@ -9,16 +9,20 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth/core": "^0.41.0",
     "@supabase/supabase-js": "^2.89.0",
     "@vercel/postgres": "^0.10.0",
+    "canvas-confetti": "^1.9.4",
     "jspdf": "^3.0.4",
     "nanoid": "^5.0.9",
     "next": "^16.1.1",
+    "next-auth": "^5.0.0-beta.30",
     "pg": "^8.16.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.16.0",
     "@types/react": "^19.0.2",
