@@ -44,8 +44,8 @@ export default function LoginPage() {
     });
 
     if (res.ok) {
-      router.push(redirectPath);
-      router.refresh();
+      // Force full page reload to update session state
+      window.location.href = redirectPath;
     } else {
       setError(true);
       setIsLoading(false);
