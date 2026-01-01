@@ -145,6 +145,7 @@ interface Translations {
   closeRoomDescription: string;
   closeRoom: string;
   closeRoomButton: string;
+  swipeToDelete: string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -289,6 +290,7 @@ const translations: Record<Language, Translations> = {
     closeRoomDescription: 'Cette action est irréversible. L\'addition sera supprimée et personne ne pourra plus y accéder.',
     closeRoom: 'Fermer',
     closeRoomButton: 'Fermer l\'addition',
+    swipeToDelete: 'glisser',
   },
   en: {
     // Home page
@@ -431,6 +433,7 @@ const translations: Record<Language, Translations> = {
     closeRoomDescription: 'This action is irreversible. The bill will be deleted and no one will be able to access it.',
     closeRoom: 'Close',
     closeRoomButton: 'Close the bill',
+    swipeToDelete: 'swipe',
   },
 };
 

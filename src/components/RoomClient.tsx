@@ -28,6 +28,8 @@ import { PWAInstallPrompt } from './PWAInstallPrompt';
 import { KidsGames } from './KidsGames';
 import { useSounds } from '@/lib/sounds';
 import { notifications } from '@/lib/notifications';
+import { Confetti } from './Confetti';
+import { SwipeToDelete } from './SwipeToDelete';
 
 interface RoomClientProps {
   initialRoom: Room;
@@ -58,6 +60,7 @@ export function RoomClient({
   const [copied, setCopied] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Tab navigation
   const [activeTab, setActiveTab] = useState<TabId>('items');
@@ -329,6 +332,14 @@ export function RoomClient({
   const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
   const remainingToPay = roomTotals.grandTotal - totalPaid;
 
+  // Trigger confetti when all paid
+  useEffect(() => {
+    if (room.status === 'paying' && remainingToPay <= 0 && totalPaid > 0 && !showConfetti) {
+      setShowConfetti(true);
+      play('paymentComplete');
+    }
+  }, [room.status, remainingToPay, totalPaid, showConfetti, play]);
+
   // Calculate debts
   const calculateDebts = () => {
     const debts: { from: Participant; to: Participant; amount: number }[] = [];
@@ -442,6 +453,7 @@ export function RoomClient({
   // Main room view
   return (
     <main className="min-h-screen pb-24 relative">
+      <Confetti trigger={showConfetti} onComplete={() => setShowConfetti(false)} />
       <AnimatedBackground backgroundImage={room.background_image} />
       <SettingsButton
         roomId={room.id}
@@ -624,27 +636,24 @@ export function RoomClient({
                 ) : (
                   <div className="space-y-2 mb-4">
                     {myItems.map(item => (
-                      <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-                        <div>
-                          <span className="font-medium text-slate-900 dark:text-white">{item.name}</span>
-                          {item.quantity > 1 && (
-                            <span className="text-slate-400 dark:text-slate-500 text-sm ml-2">x{item.quantity}</span>
-                          )}
+                      <SwipeToDelete key={item.id} onDelete={() => handleRemoveItem(item.id)}>
+                        <div className="flex items-center justify-between p-3">
+                          <div>
+                            <span className="font-medium text-slate-900 dark:text-white">{item.name}</span>
+                            {item.quantity > 1 && (
+                              <span className="text-slate-400 dark:text-slate-500 text-sm ml-2">x{item.quantity}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-slate-900 dark:text-white">
+                              {formatCurrency(getItemTotal(item), currency)}
+                            </span>
+                            <span className="text-slate-300 dark:text-slate-600 text-xs">
+                              ← {t.swipeToDelete || 'glisser'}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold text-slate-900 dark:text-white">
-                            {formatCurrency(getItemTotal(item), currency)}
-                          </span>
-                          <button
-                            onClick={() => handleRemoveItem(item.id)}
-                            className="text-red-500 hover:text-red-600 p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
+                      </SwipeToDelete>
                     ))}
                   </div>
                 )}

@@ -89,7 +89,7 @@ export function SettingsButton({ roomId, isCreator, hasBackground, onBackgroundC
   };
 
   return (
-    <div className="fixed top-4 right-4 z-40" ref={dropdownRef}>
+    <div className="fixed top-8 right-4 z-40" ref={dropdownRef}>
       {/* Settings Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}

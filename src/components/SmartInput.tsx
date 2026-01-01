@@ -59,7 +59,8 @@ export function SmartInput({
     onChange(item.name);
     setShowSuggestions(false);
     onSuggestionSelect?.(item);
-    inputRef.current?.focus();
+    // Blur the input to close the keyboard on mobile
+    inputRef.current?.blur();
   }, [onChange, onSuggestionSelect]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
