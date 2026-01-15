@@ -138,6 +138,14 @@ interface Translations {
   billNotFound: string;
   billNotFoundDesc: string;
   createNewBillButton: string;
+
+  // Room management
+  home: string;
+  closeRoomTitle: string;
+  closeRoomDescription: string;
+  closeRoom: string;
+  closeRoomButton: string;
+  swipeToDelete: string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -275,6 +283,14 @@ const translations: Record<Language, Translations> = {
     billNotFound: 'Addition introuvable',
     billNotFoundDesc: 'Cette addition n\'existe pas ou a été supprimée.',
     createNewBillButton: 'Créer une nouvelle addition',
+
+    // Room management
+    home: 'Accueil',
+    closeRoomTitle: 'Fermer l\'addition ?',
+    closeRoomDescription: 'Cette action est irréversible. L\'addition sera supprimée et personne ne pourra plus y accéder.',
+    closeRoom: 'Fermer',
+    closeRoomButton: 'Fermer l\'addition',
+    swipeToDelete: 'glisser',
   },
   en: {
     // Home page
@@ -410,6 +426,14 @@ const translations: Record<Language, Translations> = {
     billNotFound: 'Bill not found',
     billNotFoundDesc: 'This bill doesn\'t exist or has been deleted.',
     createNewBillButton: 'Create New Bill',
+
+    // Room management
+    home: 'Home',
+    closeRoomTitle: 'Close the bill?',
+    closeRoomDescription: 'This action is irreversible. The bill will be deleted and no one will be able to access it.',
+    closeRoom: 'Close',
+    closeRoomButton: 'Close the bill',
+    swipeToDelete: 'swipe',
   },
 };
 

@@ -16,10 +16,13 @@ import {
   updateRoomStatus as dbUpdateRoomStatus,
   updateRoomTipTax as dbUpdateRoomTipTax,
   updateRoomBackground as dbUpdateRoomBackground,
+  deleteRoom as dbDeleteRoom,
   getParticipantBySession,
   initializeDatabase,
+  linkRoomToUser,
 } from './db';
 import { Currency, RoomStatus } from '@/types';
+import { auth } from './auth';
 
 // Generate short room ID
 function generateRoomId(): string {
@@ -47,6 +50,16 @@ export async function createRoomAction(formData: FormData) {
 
   // Create the room
   await dbCreateRoom(roomId, currency, sessionToken, title || undefined);
+
+  // Link room to user if logged in
+  try {
+    const session = await auth();
+    if (session?.user?.id) {
+      await linkRoomToUser(roomId, session.user.id);
+    }
+  } catch {
+    // User not logged in, continue without linking
+  }
 
   // Add the creator as first participant
   const participantId = nanoid();
@@ -229,4 +242,13 @@ export async function updateRoomBackgroundAction(formData: FormData) {
 
   revalidatePath(`/r/${roomId}`);
   return { success: true };
+}
+
+// Close/Delete room (creator only)
+export async function closeRoomAction(formData: FormData) {
+  const roomId = formData.get('roomId') as string;
+
+  await dbDeleteRoom(roomId);
+
+  redirect('/');
 }
